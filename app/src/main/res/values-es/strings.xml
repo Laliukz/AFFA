@@ -1,0 +1,187 @@
+<resources>
+    <string name="app_name">Anime FFA</string>
+    <string name="settings_title">Ajustes</string>
+    <string name="settings_section_general">GENERAL</string>
+    <string name="settings_app_language">Idioma de la aplicación</string>
+    <string name="settings_notifications">Notificaciones</string>
+    <string name="settings_notifications_subtitle">Nuevos episodios de anime en emisión</string>
+    <string name="settings_section_backup">Copia de Seguridad</string>
+    <string name="settings_export_data">Exportar Datos</string>
+    <string name="settings_export_data_subtitle">Guardar una copia de tus datos</string>
+    <string name="settings_import_data">Importar Datos</string>
+    <string name="settings_import_data_subtitle">Restaurar tus datos desde una copia</string>
+    <string name="settings_section_support">SOPORTE</string>
+    <string name="settings_help_support">Ayuda y Soporte</string>
+    <string name="settings_privacy_policy">Política de Privacidad</string>
+    <!-- Home Screen -->
+    <string name="home_continue_watching">Continuar Viendo</string>
+    <string name="home_today_episodes">Episodios de hoy</string>
+    <string name="home_popular">Populares</string>
+    <string name="home_recently_added">Recién Añadidos</string>
+    <string name="home_add_to_list">Añadir a Mi Lista</string>
+    <string name="home_add_to_list_prompt">¿En qué estado quieres guardar este anime?</string>
+    
+    <!-- Status -->
+    <string name="status_watching">Viendo</string>
+    <string name="status_planned">Planeado</string>
+    <string name="status_completed">Completado</string>
+
+    <!-- Profile Screen -->
+    <string name="profile_edit_profile">Editar Perfil</string>
+    <string name="profile_username">Nombre de usuario</string>
+    <string name="profile_save">Guardar</string>
+    <string name="profile_cancel">Cancelar</string>
+    <string name="profile_choose_avatar">Elegir Avatar</string>
+    <string name="profile_my_account">Mi Cuenta</string>
+    <string name="profile_watched">VISTOS</string>
+    <string name="profile_in_list">EN LISTA</string>
+    <string name="profile_content">CONTENIDO</string>
+    <string name="profile_history">Historial</string>
+    <string name="profile_continue_watching">Continuar viendo</string>
+    <string name="profile_downloads">Descargas</string>
+    <string name="profile_available_episodes">Episodios disponibles</string>
+    <string name="profile_settings_support">AJUSTES Y SOPORTE</string>
+    <string name="profile_app_preferences">Preferencias de App</string>
+    <string name="profile_support_kofi">Apóyame en Ko-fi</string>
+    <string name="profile_support_kofi_subtitle">Invítame un café para seguir mejorando</string>
+
+    <!-- Explore Screen -->
+    <string name="explore_title">Explorar</string>
+    <string name="explore_trends">Tendencias</string>
+    <string name="explore_all">Explorar Todo</string>
+    <string name="explore_category_all">Todos</string>
+    <string name="explore_category_action">Acción</string>
+    <string name="explore_category_adventure">Aventura</string>
+    <string name="explore_category_romance">Romance</string>
+    <string name="explore_category_fantasy">Fantasía</string>
+
+    <!-- History Screen -->
+    <string name="history_title">Historial</string>
+    <string name="history_back">Regresar</string>
+    <string name="history_clear_all">Borrar todo</string>
+    <string name="history_empty">No hay historial reciente</string>
+    <string name="history_yesterday">AYER</string>
+    <string name="history_this_week">ESTA SEMANA</string>
+    <string name="history_more_options">Más opciones</string>
+    <string name="history_watched">Visto</string>
+
+    <!-- MyList Screen -->
+    <string name="mylist_title">Mi Lista</string>
+    <string name="mylist_done">Listo</string>
+    <string name="mylist_edit">Editar</string>
+    <string name="mylist_order">ORDEN: %1$s</string>
+    <string name="mylist_order_recent">RECIENTES</string>
+    <string name="mylist_order_alpha">ALFABÉTICO</string>
+    <string name="mylist_count_animes">%1$d Animes</string>
+    <string name="mylist_status_releasing">En Emisión</string>
+    <string name="mylist_status_finished">Finalizado</string>
+    <string name="mylist_status_upcoming">Próximamente</string>
+    <string name="mylist_status_cancelled">Cancelado</string>
+    <string name="mylist_status_unknown">Desconocido</string>
+    <string name="mylist_episodes_remaining">%1$d por ver</string>
+    <string name="mylist_up_to_date">Al día</string>
+    <string name="mylist_completed_status">Completado</string>
+    <string name="mylist_episodes_aired">%1$d Episodios Transmitidos</string>
+    <string name="mylist_episodes_total">%1$d Episodios Totales</string>
+    <string name="list_watching">Viendo</string>
+    <string name="list_planned">Planeado</string>
+    <string name="list_completed">Completado</string>
+    <string name="list_all">Todos</string>
+
+    <!-- Search Screen -->
+    <string name="search_sort_by">Ordenar por</string>
+    <string name="search_genre">Género</string>
+    <string name="search_year">Año</string>
+    <string name="search_status">Estado</string>
+    <string name="search_sort_popularity">Popularidad</string>
+    <string name="search_sort_trending">Tendencia</string>
+    <string name="search_sort_newest">Más reciente</string>
+    <string name="search_sort_score">Puntuación</string>
+    <string name="search_genre_action">Acción</string>
+    <string name="search_genre_adventure">Aventura</string>
+    <string name="search_genre_comedy">Comedia</string>
+    <string name="search_genre_drama">Drama</string>
+    <string name="search_genre_fantasy">Fantasía</string>
+    <string name="search_genre_romance">Romance</string>
+    <string name="search_genre_scifi">Ciencia Ficción</string>
+    <string name="search_year_older">Anteriores</string>
+    <string name="search_status_releasing">En Emisión</string>
+    <string name="search_status_finished">Finalizado</string>
+    <string name="search_clear_filter">Limpiar filtro</string>
+    <string name="search_results">Resultados</string>
+    <string name="search_top_results">Mejores Resultados</string>
+    <string name="search_no_results">No se encontraron resultados.</string>
+    <string name="search_back">Atrás</string>
+
+    <!-- Details Screen -->
+    <string name="details_tab_episodes">Episodios</string>
+    <string name="details_tab_similar">Similares</string>
+    <string name="details_tab_seasons">Temporadas</string>
+    <string name="details_back">Atrás</string>
+    <string name="details_cast">Cast</string>
+    <string name="details_type_tags">Anime • %1$s</string>
+    <string name="details_default_tags">Series</string>
+    <string name="details_watch_again">Volver a ver E1</string>
+    <string name="details_play_episode">Reproducir E%1$d</string>
+    <string name="details_add_to_list">Añadir a lista</string>
+    <string name="details_no_description">Sin descripción</string>
+    <string name="details_see_more">Ver más</string>
+    <string name="details_all_episodes">Todos los episodios</string>
+    <string name="details_mark_all">Marcar todos</string>
+    <string name="details_error_episodes">Error al cargar los episodios</string>
+    <string name="details_no_episodes_published">Aún no hay episodios publicados.</string>
+    <string name="details_episode_number">Episodio %1$d</string>
+    <string name="details_no_related_content">No hay contenido relacionado disponible en este momento.</string>
+    <string name="details_dialog_add_title">Añadir a Mi Lista</string>
+    <string name="details_dialog_add_message">¿En qué estado quieres guardar este anime?</string>
+
+    <!-- Video Player Screen -->
+    <string name="video_extracting">Extrayendo video de %1$s...</string>
+    <string name="episode_tap_to_watch">Toca para ver</string>
+    <string name="episode_mark_watched">Marcar visto</string>
+    <string name="video_select_server">Selecciona un servidor</string>
+    <string name="video_back">Regresar</string>
+    <string name="video_episode_upper">EPISODIO %1$s</string>
+    <string name="video_loading">Cargando...</string>
+    <string name="video_released">Lanzado</string>
+    <string name="video_select_server_title">Seleccionar Servidor</string>
+    <string name="video_report_problem">Reportar Problema</string>
+    <string name="video_ep_short">Ep %1$d</string>
+    <string name="video_tab_info">Info</string>
+    <string name="video_tab_related">Relacionado</string>
+    <string name="video_loading_synopsis">Cargando sinopsis...</string>
+    <string name="video_next_episode">Siguiente Episodio</string>
+    <string name="video_next_episode_fallback">Siguiente episodio</string>
+
+    <!-- Downloads Screen -->
+    <string name="downloads_title">Descargas</string>
+    <string name="downloads_storage">Almacenamiento</string>
+    <string name="downloads_storage_info">12.4 GB / 64 GB</string>
+    <string name="downloads_example_title">Anime de Ejemplo %1$d</string>
+    <string name="downloads_example_episode">Episodio %1$02d</string>
+    <string name="downloads_size">240 MB</string>
+    <string name="downloads_delete">Eliminar</string>
+    <string name="downloads_back">Atrás</string>
+
+    <!-- Splash Screen -->
+    <string name="splash_loading">CARGANDO...</string>
+
+    <string name="settings_about">Acerca de</string>
+    <string name="settings_about_dialog_title">Acerca de la app</string>
+    <string name="settings_about_dialog_description">Una aplicación para disfrutar de tu anime favorito en cualquier momento y lugar.</string>
+    <string name="settings_export_success">Datos exportados correctamente</string>
+    <string name="settings_export_error">Error al exportar datos</string>
+    <string name="settings_import_success">Datos importados correctamente</string>
+    <string name="settings_import_error">Error al importar datos</string>
+    <string name="settings_version">Versión %1$s</string>
+    <string name="settings_close">Cerrar</string>
+    <string name="settings_privacy_summary_title">Resumen de nuestra política:</string>
+    <string name="settings_privacy_summary_desc">• No recopilamos datos personales sin tu consentimiento\n• Tu historial de visualización se almacena localmente\n• No compartimos información con terceros\n• Puedes eliminar tus datos en cualquier momento</string>
+    <string name="settings_support_dialog_desc">¿Tienes problemas o preguntas?</string>
+    <string name="settings_support_report_bugs">Reportar errores</string>
+    <string name="settings_support_join_community">Únete a nuestra comunidad</string>
+    <string name="settings_made_with_love">Hecho con ❤️ para fans del anime</string>
+    <string name="settings_language_dialog_title">Seleccionar Idioma</string>
+    <string name="language_english">English</string>
+    <string name="language_spanish">Español</string>
+</resources>
