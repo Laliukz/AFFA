@@ -73,16 +73,15 @@ Para que la información de los animes cargue correctamente (como descripciones 
 3. Consigue tu API Key gratuita en [TMDB Settings](https://www.themoviedb.org/settings/api).
 4. Pégala en el archivo bajo la variable `TMDB_API_KEY=tu_api_key`.
 
-## 🤝 Contribución
+## 🤝 Contribución y Feedback
 
-Si deseas contribuir, mejorar el reproductor de video o añadir nuevas funcionalidades, ¡los PRs son bienvenidos!
+Aunque este proyecto fue creado como una demostración técnica para portafolio, el ecosistema open-source vive del conocimiento compartido. 
+
+Si eres un reclutador, otro desarrollador, o simplemente encuentras una oportunidad para mejorar la arquitectura (MVVM), optimizar Compose, o tienes feedback técnico, **¡los Pull Requests y Code Reviews son súper bienvenidos!**
 
 1. Realiza un *Fork* del proyecto.
-2. Crea una nueva rama para tu característica (`git checkout -b feature/NuevaCaracteristica`).
-3. Realiza tus cambios y haz *commit* (`git commit -m 'feat: Añadir nueva característica'`).
-4. Sube la rama (`git push origin feature/NuevaCaracteristica`).
-5. Abre un *Pull Request*.
-
+2. Crea una rama para tu propuesta (`git checkout -b refactor/MejoraArquitectura`).
+3. Sube la rama y abre un *Pull Request*.
 ## ⚖️ Descargo de Responsabilidad
 
 **AFFA (Anime Free For All)** no aloja, almacena ni distribuye ningún tipo de contenido multimedia con derechos de autor en sus repositorios ni servidores. 
