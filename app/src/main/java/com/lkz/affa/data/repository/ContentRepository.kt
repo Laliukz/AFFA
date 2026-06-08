@@ -167,7 +167,7 @@ object ContentRepository {
                     try {
                         val words = query.split(" ").take(4).joinToString(" ")
                         val encodedQuery = java.net.URLEncoder.encode(words, "UTF-8")
-                        val url = "https://www3.animeflv.net/browse?q=${'$'}encodedQuery"
+                        val url = "https://www3.animeflv.net/browse?q=$encodedQuery"
 
                         val response = HttpService.instance.get(url) ?: return@async titles
                         val titleRegex =
@@ -246,8 +246,9 @@ object ContentRepository {
         val historyDao = HistoryDao(dbHelper)
         val historyList = historyDao.getHistory()
 
-        val preliminaryList = historyList.map { map ->
+        val preliminaryList = historyList.mapNotNull { map ->
             val rawId = map["anime_id"] as? String ?: ""
+            if (rawId == "\$rawId" || rawId == "anilist:\$rawId") return@mapNotNull null
             val animeId = if (rawId.isNotEmpty() && !rawId.contains(":")) "anilist:$rawId" else rawId
 
             val title = map["anime_title"] as? String ?: "Unknown"

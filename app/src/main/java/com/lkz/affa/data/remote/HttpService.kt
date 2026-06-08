@@ -20,15 +20,15 @@ class HttpService private constructor() {
     fun init(context: Context) {
         try {
             val httpCacheDir = File(context.cacheDir, "http_cache")
-            val httpCacheSize = 50L * 1024 * 1024 // 50 MiB
-            HttpResponseCache.install(httpCacheDir, httpCacheSize)
-            Log.d(TAG, "HTTP cache initialized at ${'$'}{httpCacheDir.absolutePath}")
+            val cacheSize = 10L * 1024 * 1024
+            val cache = android.net.http.HttpResponseCache.install(httpCacheDir, cacheSize)
+            Log.d(TAG, "HTTP cache initialized at ${httpCacheDir.absolutePath}")
         } catch (e: Exception) {
-            Log.e(TAG, "HTTP response cache installation failed: ${'$'}e")
+            Log.e(TAG, "HTTP response cache installation failed: $e")
         }
     }
 
-    suspend fun get(urlString: String, headers: Map<String, String> = emptyMap()): String = withContext(Dispatchers.IO) {
+    suspend fun get(urlString: String, headers: Map<String, String> = emptyMap(), forceRefresh: Boolean = false): String = withContext(Dispatchers.IO) {
         val retryDelays = listOf(1000L, 2000L, 3000L)
         var attempt = 0
         
@@ -45,8 +45,11 @@ class HttpService private constructor() {
                     connection.setRequestProperty(key, value)
                 }
                 
-                connection.useCaches = true
-                connection.addRequestProperty("Cache-Control", "max-stale=${'$'}{7 * 24 * 60 * 60}")
+                if (forceRefresh) {
+                    connection.addRequestProperty("Cache-Control", "no-cache")
+                } else {
+                    connection.addRequestProperty("Cache-Control", "max-stale=${7 * 24 * 60 * 60}")
+                }
 
                 val responseCode = connection.responseCode
                 if (responseCode == HttpURLConnection.HTTP_OK) {
@@ -64,7 +67,7 @@ class HttpService private constructor() {
                     throw e
                 }
                 if (attempt < retryDelays.size) {
-                    Log.d(TAG, "Request failed, retrying in ${'$'}{retryDelays[attempt]}ms. Error: ${'$'}{e.message}")
+                    Log.d(TAG, "Request failed, retrying in ${retryDelays[attempt]}ms. Error: ${e.message}")
                     delay(retryDelays[attempt])
                     attempt++
                 } else {
@@ -104,7 +107,7 @@ class HttpService private constructor() {
                 if (responseCode == HttpURLConnection.HTTP_OK) {
                     return@withContext connection.inputStream.bufferedReader().use { it.readText() }
                 } else {
-                    throw Exception("HTTP POST Error ${'$'}responseCode")
+                    throw Exception("HTTP POST Error $responseCode")
                 }
             } catch (e: Exception) {
                 connection?.disconnect()
@@ -146,13 +149,12 @@ class HttpService private constructor() {
                 }
 
                 val responseCode = connection.responseCode
-                if (responseCode in 200..399) {
-                    val location = connection.getHeaderField("Location")
-                    if (location != null) return@withContext location
-                    return@withContext connection.inputStream.bufferedReader().use { it.readText() }
-                } else {
+                if (responseCode !in 200..299) {
                     throw Exception("HTTP POST Error $responseCode")
                 }
+                val location = connection.getHeaderField("Location")
+                if (location != null) return@withContext location
+                return@withContext connection.inputStream.bufferedReader().use { it.readText() }
             } catch (e: Exception) {
                 connection?.disconnect()
                 if (attempt < retryDelays.size) {

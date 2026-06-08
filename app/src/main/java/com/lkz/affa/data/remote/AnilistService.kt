@@ -32,7 +32,7 @@ class AnilistService {
         val responseCode = connection.responseCode
         if (responseCode != HttpURLConnection.HTTP_OK) {
             val errorBody = connection.errorStream?.bufferedReader()?.use { it.readText() }
-            throw Exception("HTTP Error: ${'$'}responseCode - ${'$'}errorBody")
+            throw Exception("HTTP Error: $responseCode - $errorBody")
         }
 
         val responseBody = connection.inputStream.bufferedReader().use { it.readText() }
@@ -168,7 +168,7 @@ class AnilistService {
                 if (media != null) {
                     val content = mapToContent(media)
                     val parts = mutableListOf<String>()
-                    parts.add("Ep. ${'$'}episode")
+                    parts.add("Ep. $episode")
                     content.tags?.firstOrNull()?.let { parts.add(it) }
                     
                     val updatedContent = content.copy(
@@ -258,9 +258,9 @@ class AnilistService {
 
         val episodePart = if (releaseStatus?.uppercase() == "RELEASING" && nextAiringEpisode != null) {
             val aired = nextAiringEpisode - 1
-            if (aired > 0) "Ep. ${'$'}aired" else null
+            if (aired > 0) "Ep. $aired" else null
         } else if (episodesCount != null && episodesCount > 0) {
-            "${'$'}episodesCount Ep."
+            "$episodesCount Ep."
         } else null
 
         val subtitleParts = mutableListOf<String>()
@@ -308,7 +308,7 @@ class AnilistService {
                 if (epJson != null) {
                     streamingEpisodesList.add(
                         com.lkz.affa.data.models.ApiEpisode(
-                            title = epJson.optString("title", "Episodio ${'$'}{i + 1}"),
+                            title = epJson.optString("title", "Episodio ${i + 1}"),
                             thumbnail = if (epJson.isNull("thumbnail")) null else epJson.optString("thumbnail"),
                             url = if (epJson.isNull("url")) null else epJson.optString("url")
                         )
@@ -319,7 +319,7 @@ class AnilistService {
 
         val rawId = json.optString("id", "")
         return Content(
-            id = if (rawId.isNotEmpty()) "anilist:${'$'}rawId" else "",
+            id = if (rawId.isNotEmpty()) "anilist:$rawId" else "",
             title = title,
             imageUrl = imageUrl,
             bannerUrl = bannerUrl,
