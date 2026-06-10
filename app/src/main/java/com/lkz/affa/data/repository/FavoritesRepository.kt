@@ -171,7 +171,7 @@ class FavoritesRepository(private val context: Context) {
     suspend fun syncAutoCompletions() = withContext(Dispatchers.IO) {
         val db = dbHelper.writableDatabase
         
-        val cursor = db.query("favorites", arrayOf("id", "total_episodes", "release_status", "status"), "status IN (?, ?)", arrayOf("Viendo", "Completado"), null, null, null)
+        val cursor = db.query("favorites", arrayOf("id", "total_episodes", "release_status", "status"), "status IN (?, ?, ?)", arrayOf("Viendo", "Completado", "Planeado"), null, null, null)
         val toComplete = mutableListOf<String>()
         val toWatching = mutableListOf<String>()
         
@@ -211,6 +211,14 @@ class FavoritesRepository(private val context: Context) {
                 } else if (currentStatus == "Completado" && !shouldBeCompleted && totalEpisodes > 0) {
                     android.util.Log.i("SyncAutoComplete", ">>> Reverting '$id' from Completado -> Viendo")
                     toWatching.add(id)
+                } else if (currentStatus == "Planeado" && watchedCount > 0) {
+                    if (shouldBeCompleted) {
+                        android.util.Log.i("SyncAutoComplete", ">>> Moving '$id' from Planeado -> Completado")
+                        toComplete.add(id)
+                    } else {
+                        android.util.Log.i("SyncAutoComplete", ">>> Moving '$id' from Planeado -> Viendo")
+                        toWatching.add(id)
+                    }
                 }
             }
         }

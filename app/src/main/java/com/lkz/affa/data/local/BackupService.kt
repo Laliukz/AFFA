@@ -186,6 +186,15 @@ class BackupService private constructor(private val context: Context) {
                     if (favorites != null) {
                         insertJsonArrayToTable(db, "favorites", favorites)
                     }
+                    
+                    try {
+                        db.execSQL("DELETE FROM history WHERE anime_id NOT LIKE '%:%'")
+                        db.execSQL("DELETE FROM favorites WHERE id NOT LIKE '%:%'")
+                        db.execSQL("DELETE FROM episode_progress WHERE anime_id NOT LIKE '%:%'")
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error cleaning up old records after restore", e)
+                    }
+                    
                     db.setTransactionSuccessful()
                 } finally {
                     db.endTransaction()

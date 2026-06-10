@@ -43,7 +43,8 @@ class DetailsViewModel(
         }
     }
 
-    private fun loadAnimeDetails(idStr: String) {
+    private fun loadAnimeDetails(rawIdStr: String) {
+        val idStr = if (rawIdStr.isNotEmpty() && !rawIdStr.contains(":")) "anilist:$rawIdStr" else rawIdStr
         viewModelScope.launch {
             _uiState.value = DetailsState.Loading
             try {
@@ -96,7 +97,13 @@ class DetailsViewModel(
                                     description = spanishInfo.description ?: details.description,
                                     tags = if (spanishInfo.genres.isNotEmpty()) spanishInfo.genres else details.tags
                                 )
-                                _uiState.value = DetailsState.Success(finalDetails, lastWatchedEp, similares)
+                                val currentState = _uiState.value as? DetailsState.Success
+                                _uiState.value = DetailsState.Success(
+                                    content = finalDetails,
+                                    lastWatchedEpisode = currentState?.lastWatchedEpisode ?: lastWatchedEp,
+                                    similarAnime = similares,
+                                    watchedEpisodes = currentState?.watchedEpisodes ?: watchedEps
+                                )
                                 ContentRepository.currentDetails = finalDetails
                             }
                         } catch (e: Exception) {

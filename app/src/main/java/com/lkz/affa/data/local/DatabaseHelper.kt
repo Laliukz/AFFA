@@ -9,7 +9,7 @@ class DatabaseHelper(context: Context) :
 
     companion object {
         private const val DATABASE_NAME = "afa.db"
-        private const val DATABASE_VERSION = 10
+        private const val DATABASE_VERSION = 11
 
         @Volatile private var instance: DatabaseHelper? = null
 
@@ -139,6 +139,18 @@ class DatabaseHelper(context: Context) :
         if (oldVersion < 10) {
             try {
                 db.execSQL("ALTER TABLE favorites ADD COLUMN next_airing_episode INTEGER")
+            } catch (e: Exception) {}
+        }
+        if (oldVersion < 11) {
+            try {
+                db.execSQL("INSERT OR REPLACE INTO history (anime_id, last_episode_id, last_episode_number, position_seconds, duration_seconds, anime_title, anime_image, total_episodes, status, updated_at) SELECT 'anilist:' || anime_id, last_episode_id, last_episode_number, position_seconds, duration_seconds, anime_title, anime_image, total_episodes, status, updated_at FROM history WHERE anime_id NOT LIKE '%:%'")
+                db.execSQL("DELETE FROM history WHERE anime_id NOT LIKE '%:%'")
+                
+                db.execSQL("INSERT OR REPLACE INTO favorites (id, title, image, total_episodes, status, release_status, next_airing_episode, added_at) SELECT 'anilist:' || id, title, image, total_episodes, status, release_status, next_airing_episode, added_at FROM favorites WHERE id NOT LIKE '%:%'")
+                db.execSQL("DELETE FROM favorites WHERE id NOT LIKE '%:%'")
+                
+                db.execSQL("INSERT OR REPLACE INTO episode_progress (anime_id, episode_id, episode_number, position_seconds, duration_seconds, is_watched, updated_at) SELECT 'anilist:' || anime_id, episode_id, episode_number, position_seconds, duration_seconds, is_watched, updated_at FROM episode_progress WHERE anime_id NOT LIKE '%:%'")
+                db.execSQL("DELETE FROM episode_progress WHERE anime_id NOT LIKE '%:%'")
             } catch (e: Exception) {}
         }
     }
