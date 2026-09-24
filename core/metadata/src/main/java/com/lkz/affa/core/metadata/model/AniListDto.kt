@@ -11,6 +11,7 @@ data class AniListData(
 )
 
 data class AniListPage(
+    @SerializedName("pageInfo") val pageInfo: AniListPageInfo?,
     @SerializedName("media") val media: List<AniListMedia>
 )
 
@@ -24,9 +25,11 @@ data class AniListMedia(
     @SerializedName("episodes") val episodes: Int?,
     @SerializedName("meanScore") val meanScore: Int?,
     @SerializedName("genres") val genres: List<String>?,
+    @SerializedName("synonyms") val synonyms: List<String>?,
     @SerializedName("idMal") val idMal: Int?,
     @SerializedName("popularity") val popularity: Int?,
-    @SerializedName("startDate") val startDate: AniListStartDate?
+    @SerializedName("startDate") val startDate: AniListStartDate?,
+    @SerializedName("nextAiringEpisode") val nextAiringEpisode: AniListNextAiring?
 )
 
 data class AniListStartDate(
@@ -43,4 +46,13 @@ data class AniListTitle(
 
 data class AniListCoverImage(
     @SerializedName("large") val large: String?
+)
+
+data class AniListNextAiring(
+    @SerializedName("episode") val episode: Int?,
+    @SerializedName("airingAt") val airingAt: Long?
+)
+
+data class AniListPageInfo(
+    @SerializedName("hasNextPage") val hasNextPage: Boolean?
 )

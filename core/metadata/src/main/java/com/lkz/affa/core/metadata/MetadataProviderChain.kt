@@ -6,6 +6,8 @@ import com.lkz.affa.core.metadata.api.TmdbApi
 import com.lkz.affa.core.metadata.model.AniListMedia
 import com.lkz.affa.domain.model.AnimeMetadata
 import com.lkz.affa.domain.model.MetadataSource
+import kotlinx.coroutines.CancellationException
+import java.util.Calendar
 
 class MetadataProviderChain(
     private val anilistApi: AniListApi,
@@ -119,7 +121,9 @@ class MetadataProviderChain(
         episodes = episodes,
         score = meanScore?.toDouble()?.div(10.0),
         genres = genres ?: emptyList(),
-        source = MetadataSource.ANILIST
+        source = MetadataSource.ANILIST,
+        nextAiringEpisode = nextAiringEpisode?.episode,
+        synonyms = ((synonyms ?: emptyList()) + listOfNotNull(title.english, title.romaji)).distinct()
     )
 
     override suspend fun getTrending(limit: Int): List<AnimeMetadata> = try {
@@ -132,9 +136,23 @@ class MetadataProviderChain(
     }
 
     override suspend fun getSeasonal(limit: Int): List<AnimeMetadata> = try {
-        val body = AniListApi.buildSeasonalBody(perPage = limit)
-        val response = anilistApi.searchAnime(body)
-        response.data.page.media.mapNotNull { it.toMetadata().takeIf { m -> !isHentai(m) } }
+        val now = java.util.Calendar.getInstance()
+        val season = AniListApi.currentSeason(now.get(java.util.Calendar.MONTH) + 1)
+        val year = now.get(java.util.Calendar.YEAR)
+        val out = mutableListOf<AnimeMetadata>()
+        var page = 1
+        while (out.size < limit && page <= 4) {
+            val body = AniListApi.buildSeasonalBody(season, year, page, 50)
+            val res = anilistApi.searchAnime(body)
+            out += res.data.page.media
+                .mapNotNull { it.toMetadata().takeIf { m -> !isHentai(m) } }
+                .filter { isAired(it.nextAiringEpisode) }
+            if (res.data.page.pageInfo?.hasNextPage != true) break
+            page++
+        }
+        out.take(limit)
+    } catch (e: CancellationException) {
+        throw e
     } catch (e: Exception) {
         e.printStackTrace()
         emptyList()
@@ -145,6 +163,8 @@ class MetadataProviderChain(
 
         fun isHentai(metadata: AnimeMetadata): Boolean =
             metadata.genres.any { it.lowercase() in HentaiGenres }
+
+        fun isAired(nextEpisode: Int?): Boolean = nextEpisode?.let { it > 1 } ?: true
 
         fun create(
             anilistApi: AniListApi,

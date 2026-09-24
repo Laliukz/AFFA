@@ -35,10 +35,18 @@ interface AniListApi {
             return json.toRequestBody(JSON_MEDIA)
         }
 
-        fun buildSeasonalBody(page: Int = 1, perPage: Int = 10): RequestBody {
-            val query = """query (${'$'}page: Int, ${'$'}perPage: Int) { Page(page: ${'$'}page, perPage: ${'$'}perPage) { media(type: ANIME, sort: START_DATE_DESC, status: RELEASING) { id idMal title { romaji english native } coverImage { large } bannerImage meanScore genres startDate { year month day } } } }"""
+        fun buildSeasonalBody(season: String, year: Int, page: Int = 1, perPage: Int = 50): RequestBody {
+            require(season in setOf("WINTER", "SPRING", "SUMMER", "FALL"))
+            val query = """query (${'$'}page: Int, ${'$'}perPage: Int) { Page(page: ${'$'}page, perPage: ${'$'}perPage) { pageInfo { hasNextPage } media(type: ANIME, season: $season, seasonYear: $year, sort: POPULARITY_DESC) { id idMal title { romaji english native } coverImage { large } bannerImage meanScore genres synonyms startDate { year month day } nextAiringEpisode { episode airingAt } } } }"""
             val json = """{"query":"$query","variables":{"page":$page,"perPage":$perPage}}"""
             return json.toRequestBody(JSON_MEDIA)
+        }
+
+        fun currentSeason(month: Int): String {
+            require(month in 1..12)
+            return when (month) {
+                in 1..3 -> "WINTER"; in 4..6 -> "SPRING"; in 7..9 -> "SUMMER"; else -> "FALL"
+            }
         }
     }
 }

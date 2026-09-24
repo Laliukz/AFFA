@@ -71,27 +71,45 @@ class HomeRepository(
     }.getOrDefault(emptyList())
 
     // ── Section 3: Recién Añadidos ──────────────────────────────────
-    // Source: AniList seasonal, filtered by scraper availability
-    private suspend fun fetchRecentlyAdded(): List<HomeAnimeItem> = coroutineScope {
-        runCatching {
-            val seasonal = metadataProvider.getSeasonal(15)
-
-            seasonal.map { meta ->
-                async {
-                    val available = isAvailableInScrapers(meta.title)
-                    if (available) meta.toHomeAnimeItem() else null
+    // Seasonal ya estrenado (AniList) + título exacto en scrapers + ≥1 episodio confirmado
+    private suspend fun fetchRecentlyAdded(): List<HomeAnimeItem> {
+        return runCatching {
+            withTimeoutOrNull(25000L) {
+                val seasonal = metadataProvider.getSeasonal(20)
+                val valid = mutableListOf<HomeAnimeItem>()
+                for (meta in seasonal) {
+                    if (valid.size >= 10) break
+                    if (isConfirmed(meta)) valid += meta.toHomeAnimeItem()
                 }
-            }.awaitAll().filterNotNull().take(10)
-        }.getOrDefault(emptyList())
+                valid
+            }
+        }.getOrNull().orEmpty()
     }
 
-    private suspend fun isAvailableInScrapers(title: String): Boolean = coroutineScope {
-        val results = listOf(
-            async { runCatching { animeAv1Scraper.search(title).isNotEmpty() }.getOrDefault(false) },
-            async { runCatching { jkAnimeScraper.search(title).isNotEmpty() }.getOrDefault(false) },
-            async { runCatching { tioAnimeScraper.search(title).isNotEmpty() }.getOrDefault(false) }
-        ).awaitAll()
-        results.any { it }
+    // ponytail: cache 24h en memoria — la disponibilidad cambia lento, el home abre seguido
+    private val availabilityCache = java.util.Collections.synchronizedMap(
+        mutableMapOf<String, Pair<Boolean, Long>>()
+    )
+
+    private suspend fun isConfirmed(meta: AnimeMetadata): Boolean {
+        val key = normalizeTitle(meta.title).joinToString(" ")
+        availabilityCache[key]?.let { (v, ts) ->
+            if (System.currentTimeMillis() - ts < 24 * 60 * 60 * 1000L) return v
+        }
+        return confirmInScrapers(meta).also { availabilityCache[key] = it to System.currentTimeMillis() }
+    }
+
+    private suspend fun confirmInScrapers(meta: AnimeMetadata): Boolean {
+        val aliases = (listOf(meta.title) + meta.synonyms).toSet()
+        // Jk cubre todo su catálogo en 1 search: match exacto alcanza.
+        // ponytail: sin details en Jk (su ajax de episodios pagina hasta 50 veces)
+        if (runCatching { jkAnimeScraper.search(meta.title).any { titleMatches(it.title, aliases) } }.getOrDefault(false)) return true
+        // Av1/Tio: match exacto + details confirma episodios (1 req c/u).
+        val av1Hit = runCatching { animeAv1Scraper.search(meta.title).firstOrNull { titleMatches(it.title, aliases) } }.getOrNull()
+        if (av1Hit != null && runCatching { animeAv1Scraper.getAnimeDetails(av1Hit.slug).episodes.isNotEmpty() }.getOrDefault(false)) return true
+        val tioHit = runCatching { tioAnimeScraper.search(meta.title).firstOrNull { titleMatches(it.title, aliases) } }.getOrNull()
+        if (tioHit != null && runCatching { tioAnimeScraper.getAnimeDetails(tioHit.slug).episodes.isNotEmpty() }.getOrDefault(false)) return true
+        return false
     }
 
     // ── Helpers ─────────────────────────────────────────────────────
@@ -148,3 +166,28 @@ data class HomeData(
     val popularItems: List<HomeAnimeItem>,
     val recentlyAddedItems: List<HomeAnimeItem>
 )
+
+// Match de títulos por tokens canónicos (internal para test local).
+// Igualdad difusa fue el bug ("Golden" ⊂ "Golden Kamuy"); igualdad exacta
+// también falla ("III" vs "3rd", orden distinto). Multiset canónico: ni más ni menos.
+private val DROP_TOKENS = setOf("season", "part", "cour", "cours")
+private val ROMAN = mapOf(
+    "i" to "1", "ii" to "2", "iii" to "3", "iv" to "4", "v" to "5",
+    "vi" to "6", "vii" to "7", "viii" to "8", "ix" to "9", "x" to "10"
+)
+
+internal fun normalizeTitle(s: String): List<String> {
+    val deburred = java.text.Normalizer.normalize(s, java.text.Normalizer.Form.NFD)
+        .replace(Regex("\\p{Mn}+"), "")
+    return deburred.lowercase()
+        .replace(Regex("[^a-z0-9 ]"), " ")
+        .split(Regex("\\s+")).filter { it.isNotEmpty() }
+        .map { ROMAN[it] ?: it.replace(Regex("^(\\d+)(st|nd|rd|th)$"), "$1") }
+        .filter { it !in DROP_TOKENS }
+}
+
+internal fun titleMatches(scraperTitle: String, aliases: Collection<String>): Boolean {
+    val n = normalizeTitle(scraperTitle).sorted()
+    if (n.isEmpty()) return false
+    return aliases.any { normalizeTitle(it).sorted() == n }
+}
