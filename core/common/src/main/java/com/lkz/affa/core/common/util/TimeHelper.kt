@@ -13,13 +13,19 @@ object TimeHelper {
         "jueves" to 4, "viernes" to 5, "sábado" to 6, "domingo" to 0
     )
 
+    // Ventana móvil de 24h (como la etiqueta "hace X horas" de Av1):
+    // publicado hace <24h = hoy, aunque ya haya cambiado la fecha calendario.
     fun classifyByInstant(instant: Instant?, zone: ZoneId = ZoneId.systemDefault()): EpisodeTimeCategory {
         if (instant == null) return EpisodeTimeCategory.OLDER
-        val episodeDate = instant.atZone(zone).toLocalDate()
-        val today = LocalDate.now(zone)
-        return when (episodeDate) {
-            today -> EpisodeTimeCategory.TODAY
-            today.minusDays(1) -> EpisodeTimeCategory.YESTERDAY
+        val hours = try {
+            java.time.Duration.between(instant, Instant.now()).toHours()
+        } catch (_: Exception) {
+            return EpisodeTimeCategory.OLDER
+        }
+        return when {
+            hours < 0 -> EpisodeTimeCategory.TODAY // reloj futuro: incluir
+            hours < 24 -> EpisodeTimeCategory.TODAY
+            hours < 48 -> EpisodeTimeCategory.YESTERDAY
             else -> EpisodeTimeCategory.OLDER
         }
     }

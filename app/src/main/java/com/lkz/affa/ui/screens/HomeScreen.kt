@@ -45,11 +45,13 @@ import com.lkz.affa.core.metadata.MetadataModule
 import com.lkz.affa.core.network.scraper.AnimeAv1Scraper
 import com.lkz.affa.data.repository.HomeData
 import com.lkz.affa.data.repository.HomeRepository
+import com.lkz.affa.data.repository.SeeAllSection
 import com.lkz.affa.domain.model.HomeAnimeItem
 
 @Composable
 fun AnimeHomeScreen(viewModel: HomeViewModel? = null) {
     var currentScreen by remember { mutableStateOf("home") }
+    var seeAll by remember { mutableStateOf<Pair<String, SeeAllSection>?>(null) }
     val uiState by viewModel?.uiState?.collectAsStateWithLifecycle()
         ?: remember { mutableStateOf(HomeUiState.Loading) }
 
@@ -118,11 +120,24 @@ fun AnimeHomeScreen(viewModel: HomeViewModel? = null) {
                         }
                     }
                     is HomeUiState.Success -> {
-                        HomeContent(
-                            data = state.data,
-                            paddingValues = paddingValues,
-                            onAnimeClick = { currentScreen = "details" }
-                        )
+                        val target = seeAll
+                        if (target != null) {
+                            SeeAllScreen(
+                                title = target.first,
+                                section = target.second,
+                                viewModel = viewModel,
+                                paddingValues = paddingValues,
+                                onBackClick = { seeAll = null },
+                                onAnimeClick = { currentScreen = "details" }
+                            )
+                        } else {
+                            HomeContent(
+                                data = state.data,
+                                paddingValues = paddingValues,
+                                onAnimeClick = { currentScreen = "details" },
+                                onSeeAll = { title, section -> seeAll = title to section }
+                            )
+                        }
                     }
                 }
             }
@@ -134,7 +149,8 @@ fun AnimeHomeScreen(viewModel: HomeViewModel? = null) {
 private fun HomeContent(
     data: HomeData,
     paddingValues: PaddingValues,
-    onAnimeClick: () -> Unit
+    onAnimeClick: () -> Unit,
+    onSeeAll: (String, SeeAllSection) -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -145,9 +161,21 @@ private fun HomeContent(
         TopBar()
         HeroCarousel(items = data.heroItems, onAnimeClick = { onAnimeClick() })
         ContinueWatchingSection(onAnimeClick = onAnimeClick)
-        TodayEpisodes(items = data.recentEpisodes, onAnimeClick = onAnimeClick)
-        PopularSection(items = data.popularItems, onAnimeClick = onAnimeClick)
-        RecentlyAddedSection(items = data.recentlyAddedItems, onAnimeClick = onAnimeClick)
+        TodayEpisodes(
+            items = data.recentEpisodes,
+            onAnimeClick = onAnimeClick,
+            onSeeAll = { onSeeAll("Episodios Recientes", SeeAllSection.RECENT) }
+        )
+        PopularSection(
+            items = data.popularItems,
+            onAnimeClick = onAnimeClick,
+            onSeeAll = { onSeeAll("Populares", SeeAllSection.POPULAR) }
+        )
+        RecentlyAddedSection(
+            items = data.recentlyAddedItems,
+            onAnimeClick = onAnimeClick,
+            onSeeAll = { onSeeAll("Recién Añadidos", SeeAllSection.ADDED) }
+        )
         Spacer(modifier = Modifier.height(24.dp))
     }
 }
@@ -196,8 +224,12 @@ fun ContinueWatchingSection(onAnimeClick: () -> Unit) {
 }
 
 @Composable
-fun TodayEpisodes(items: List<HomeAnimeItem>, onAnimeClick: () -> Unit) {
-    SectionHeader(title = "Episodios Recientes", showSeeAll = true)
+fun TodayEpisodes(
+    items: List<HomeAnimeItem>,
+    onAnimeClick: () -> Unit,
+    onSeeAll: () -> Unit = {}
+) {
+    SectionHeader(title = "Episodios Recientes", showSeeAll = true, onSeeAll = onSeeAll)
     LazyRow(
         contentPadding = PaddingValues(horizontal = 16.dp),
         horizontalArrangement = Arrangement.spacedBy(16.dp)
@@ -255,8 +287,12 @@ fun TodayEpisodes(items: List<HomeAnimeItem>, onAnimeClick: () -> Unit) {
 }
 
 @Composable
-fun PopularSection(items: List<HomeAnimeItem>, onAnimeClick: () -> Unit) {
-    SectionHeader(title = "Populares", showSeeAll = true)
+fun PopularSection(
+    items: List<HomeAnimeItem>,
+    onAnimeClick: () -> Unit,
+    onSeeAll: () -> Unit = {}
+) {
+    SectionHeader(title = "Populares", showSeeAll = true, onSeeAll = onSeeAll)
     LazyRow(
         contentPadding = PaddingValues(horizontal = 16.dp),
         horizontalArrangement = Arrangement.spacedBy(16.dp)
@@ -327,8 +363,12 @@ fun PopularSection(items: List<HomeAnimeItem>, onAnimeClick: () -> Unit) {
 }
 
 @Composable
-fun RecentlyAddedSection(items: List<HomeAnimeItem>, onAnimeClick: () -> Unit) {
-    SectionHeader(title = "Recién Añadidos", showSeeAll = true)
+fun RecentlyAddedSection(
+    items: List<HomeAnimeItem>,
+    onAnimeClick: () -> Unit,
+    onSeeAll: () -> Unit = {}
+) {
+    SectionHeader(title = "Recién Añadidos", showSeeAll = true, onSeeAll = onSeeAll)
     LazyRow(
         contentPadding = PaddingValues(horizontal = 16.dp),
         horizontalArrangement = Arrangement.spacedBy(16.dp)
@@ -389,7 +429,7 @@ fun RecentlyAddedSection(items: List<HomeAnimeItem>, onAnimeClick: () -> Unit) {
 }
 
 @Composable
-fun SectionHeader(title: String, showSeeAll: Boolean = false) {
+fun SectionHeader(title: String, showSeeAll: Boolean = false, onSeeAll: (() -> Unit)? = null) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -399,7 +439,13 @@ fun SectionHeader(title: String, showSeeAll: Boolean = false) {
     ) {
         Text(text = title, color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
         if (showSeeAll) {
-            Text(text = "Ver Todo", color = PrimaryPurple, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+            Text(
+                text = "Ver Todo",
+                color = PrimaryPurple,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.clickable(enabled = onSeeAll != null) { onSeeAll?.invoke() }
+            )
         }
     }
 }
