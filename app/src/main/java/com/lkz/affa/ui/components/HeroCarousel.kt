@@ -1,37 +1,37 @@
 package com.lkz.affa.ui.components
 
-import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.runtime.*
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.lkz.affa.data.models.Content
+import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
+import com.lkz.affa.domain.model.HomeAnimeItem
 import com.lkz.affa.ui.theme.AppPrimary
-import androidx.compose.foundation.interaction.collectIsDraggedAsState
-import kotlinx.coroutines.delay
-import com.lkz.affa.ui.theme.*
+import com.lkz.affa.ui.theme.DarkBackground
+import com.lkz.affa.ui.theme.PrimaryPurple
+import com.lkz.affa.ui.theme.TextGray
 
-/**
- * Equivalent of Flutter's HeroCarousel (carousel_slider).
- * Uses Compose's [HorizontalPager] with auto-play, pause-on-interaction,
- * and animated pill-style page indicators.
- */
 @Composable
 fun HeroCarousel(
-    contentList: List<Content>,
-    onPlayClick: (Content) -> Unit = {},
-    onAddClick: (Content) -> Unit = {},
-    modifier: Modifier = Modifier
+    items: List<HomeAnimeItem>,
+    onAnimeClick: (HomeAnimeItem) -> Unit = {}
 ) {
-    if (contentList.isEmpty()) return
+    if (items.isEmpty()) return
 
     val configuration = LocalConfiguration.current
     val screenWidthDp = configuration.screenWidthDp
@@ -39,81 +39,105 @@ fun HeroCarousel(
     val isLandscape = configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
 
     val carouselHeightDp = when {
-        isWide -> 550.dp
-        isLandscape -> (configuration.screenHeightDp * 0.8f).dp
-        else -> 500.dp
+        isWide -> 420.dp
+        isLandscape -> (configuration.screenHeightDp * 0.75f).dp
+        else -> 360.dp
     }
 
-    val pageCount = Int.MAX_VALUE
-    val startIndex = (pageCount / 2) - ((pageCount / 2) % contentList.size)
-    val pagerState = rememberPagerState(initialPage = startIndex, pageCount = { pageCount })
+    val pagerState = rememberPagerState(pageCount = { items.size })
 
-    val isDragged by pagerState.interactionSource.collectIsDraggedAsState()
-
-    LaunchedEffect(isDragged) {
-        if (!isDragged) {
-            while (true) {
-                delay(5_000L)
-                if (contentList.size > 1) {
-                    pagerState.animateScrollToPage(
-                        page = pagerState.currentPage + 1,
-                        animationSpec = tween(durationMillis = 800)
-                    )
-                }
-            }
-        }
-    }
-
-    Box(modifier = modifier.fillMaxWidth()) {
-
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(carouselHeightDp)
+    ) {
         HorizontalPager(
             state = pagerState,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(carouselHeightDp)
+            modifier = Modifier.fillMaxSize()
         ) { page ->
-            val actualPage = page % contentList.size
-            HeroSection(
-                content = contentList[actualPage],
-                onPlayClick = { onPlayClick(contentList[actualPage]) },
-                onAddClick = { onAddClick(contentList[actualPage]) }
-            )
+            val item = items[page]
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clickable { onAnimeClick(item) }
+            ) {
+                AsyncImage(
+                    model = item.bannerUrl ?: item.imageUrl,
+                    contentDescription = item.title,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize()
+                )
+
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(
+                            Brush.verticalGradient(
+                                colors = listOf(
+                                    Color.Transparent,
+                                    DarkBackground.copy(alpha = 0.5f),
+                                    DarkBackground
+                                )
+                            )
+                        )
+                )
+
+                Column(
+                    modifier = Modifier
+                        .align(Alignment.BottomStart)
+                        .padding(16.dp)
+                ) {
+                    if (item.genres.isNotEmpty()) {
+                        Text(
+                            text = item.genres.take(3).joinToString(" • "),
+                            color = PrimaryPurple,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                    }
+                    Text(
+                        text = item.title,
+                        color = Color.White,
+                        fontSize = 22.sp,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    val synopsis = item.synopsis
+                    if (!synopsis.isNullOrBlank()) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = synopsis,
+                            color = TextGray,
+                            fontSize = 12.sp,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
+            }
         }
 
         Row(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
-                .padding(bottom = 5.dp),
+                .padding(bottom = 8.dp),
             horizontalArrangement = Arrangement.Center,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            repeat(contentList.size) { index ->
-                val actualCurrentPage = pagerState.currentPage % contentList.size
-                val isSelected = actualCurrentPage == index
-                val indicatorWidth by animateDpAsState(
-                    targetValue = if (isSelected) 24.dp else 8.dp,
-                    animationSpec = tween(durationMillis = 500),
-                    label = "indicatorWidth"
-                )
-
+            repeat(items.size) { index ->
+                val isSelected = pagerState.currentPage == index
                 Box(
                     modifier = Modifier
-                        .padding(horizontal = 4.dp)
+                        .padding(horizontal = 3.dp)
                         .height(4.dp)
-                        .width(indicatorWidth)
-                        .shadow(
-                            elevation = if (isSelected) 8.dp else 0.dp,
-                            shape = RoundedCornerShape(2.dp),
-                            ambientColor = AppPrimary,
-                            spotColor = AppPrimary
-                        )
-                        .background(
-                            color = if (isSelected) AppPrimary
-                            else AppTextPrimary.copy(alpha = 0.4f),
-                            shape = RoundedCornerShape(2.dp)
-                        )
+                        .width(if (isSelected) 18.dp else 6.dp)
+                        .clip(RoundedCornerShape(2.dp))
+                        .background(if (isSelected) AppPrimary else Color.White.copy(alpha = 0.4f))
                 )
             }
         }
     }
 }
+
