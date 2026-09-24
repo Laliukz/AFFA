@@ -1,9 +1,4 @@
-# Renombra este archivo a "local.properties" y agrega tus claves
-# NO SUBAS local.properties A GITHUB
-
-# Directorio del SDK de Android (normalmente se genera solo por Android Studio)
-# sdk.dir=/home/tu_usuario/Android/Sdk
-
-# Clave de API de The Movie Database (TMDB)
-# Obtén la tuya gratis en: https://www.themoviedb.org/settings/api
-TMDB_API_KEY=tu_api_key_aqui
+## Copy to local.properties and fill in. Never commit the real file.
+sdk.dir=/path/to/Android/Sdk
+ANILIST_API_URL=https://graphql.anilist.co
+TMDB_API_KEY=

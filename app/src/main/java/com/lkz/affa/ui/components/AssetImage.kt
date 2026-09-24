@@ -9,13 +9,9 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 
-/**
- * Loads and displays an image from the app's assets folder.
- *
- * @param path Path relative to the assets folder (e.g. "images/app_icon.png")
- */
 @Composable
 fun AssetImage(
+    // Ruta relativa dentro del directorio assets (ej. "images/app_icon.png")
     path: String,
     modifier: Modifier = Modifier,
     contentDescription: String? = null,

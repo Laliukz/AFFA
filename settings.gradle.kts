@@ -22,5 +22,11 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "AFFA"
+rootProject.name = "affa"
 include(":app")
+include(":domain")
+
+// Core modules
+include(":core:common")
+include(":core:network")
+include(":core:metadata")
