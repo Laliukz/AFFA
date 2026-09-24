@@ -14,7 +14,8 @@ data class AnimeMetadata(
     val score: Double?,
     val genres: List<String>,
     val source: MetadataSource,
-    val nextAiringEpisode: Int? = null
+    val nextAiringEpisode: Int? = null,
+    val synonyms: List<String> = emptyList()
 )
 
 enum class MetadataSource { ANILIST, JIKAN, TMDB }

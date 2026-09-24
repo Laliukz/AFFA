@@ -25,6 +25,7 @@ data class AniListMedia(
     @SerializedName("episodes") val episodes: Int?,
     @SerializedName("meanScore") val meanScore: Int?,
     @SerializedName("genres") val genres: List<String>?,
+    @SerializedName("synonyms") val synonyms: List<String>?,
     @SerializedName("idMal") val idMal: Int?,
     @SerializedName("popularity") val popularity: Int?,
     @SerializedName("startDate") val startDate: AniListStartDate?,

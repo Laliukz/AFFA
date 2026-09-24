@@ -6,6 +6,7 @@ import com.lkz.affa.core.metadata.api.TmdbApi
 import com.lkz.affa.core.metadata.model.AniListMedia
 import com.lkz.affa.domain.model.AnimeMetadata
 import com.lkz.affa.domain.model.MetadataSource
+import kotlinx.coroutines.CancellationException
 import java.util.Calendar
 
 class MetadataProviderChain(
@@ -121,7 +122,8 @@ class MetadataProviderChain(
         score = meanScore?.toDouble()?.div(10.0),
         genres = genres ?: emptyList(),
         source = MetadataSource.ANILIST,
-        nextAiringEpisode = nextAiringEpisode?.episode
+        nextAiringEpisode = nextAiringEpisode?.episode,
+        synonyms = ((synonyms ?: emptyList()) + listOfNotNull(title.english, title.romaji)).distinct()
     )
 
     override suspend fun getTrending(limit: Int): List<AnimeMetadata> = try {
@@ -149,6 +151,8 @@ class MetadataProviderChain(
             page++
         }
         out.take(limit)
+    } catch (e: CancellationException) {
+        throw e
     } catch (e: Exception) {
         e.printStackTrace()
         emptyList()
