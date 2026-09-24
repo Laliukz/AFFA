@@ -6,6 +6,7 @@ import com.lkz.affa.core.metadata.api.TmdbApi
 import com.lkz.affa.core.metadata.model.AniListMedia
 import com.lkz.affa.domain.model.AnimeMetadata
 import com.lkz.affa.domain.model.MetadataSource
+import java.util.Calendar
 
 class MetadataProviderChain(
     private val anilistApi: AniListApi,
@@ -132,7 +133,10 @@ class MetadataProviderChain(
     }
 
     override suspend fun getSeasonal(limit: Int): List<AnimeMetadata> = try {
-        val body = AniListApi.buildSeasonalBody(perPage = limit)
+        val cal = Calendar.getInstance()
+        val season = AniListApi.currentSeason(cal.get(Calendar.MONTH) + 1)
+        val year = cal.get(Calendar.YEAR)
+        val body = AniListApi.buildSeasonalBody(season, year, 1, limit)
         val response = anilistApi.searchAnime(body)
         response.data.page.media.mapNotNull { it.toMetadata().takeIf { m -> !isHentai(m) } }
     } catch (e: Exception) {
