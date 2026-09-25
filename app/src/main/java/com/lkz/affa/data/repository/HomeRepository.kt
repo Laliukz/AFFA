@@ -44,41 +44,48 @@ class HomeRepository(
         }
     }
 
+    suspend fun getSeeAll(section: SeeAllSection): List<HomeAnimeItem> = withContext(Dispatchers.IO) {
+        when (section) {
+            SeeAllSection.RECENT -> fetchRecentEpisodes(Int.MAX_VALUE)
+            SeeAllSection.POPULAR -> fetchPopular(20)
+            SeeAllSection.ADDED -> fetchRecentlyAdded(Int.MAX_VALUE, 60000L)
+        }
+    }
+
     // ── Section 1: Episodios Recientes ──────────────────────────────
-    // Source: scrapers only (today's episodes)
-    private suspend fun fetchRecentEpisodes(): List<HomeAnimeItem> = coroutineScope {
+    // Solo Av1 + Jk (filtran "hoy" con fecha real). Sin respaldo de Tio:
+    // si ambas fallan la sección queda vacía — mejor que mostrar días viejos.
+    private suspend fun fetchRecentEpisodes(need: Int = 5): List<HomeAnimeItem> = coroutineScope {
         runCatching {
             val userZone = java.time.ZoneId.systemDefault()
 
-            val episodes = listOf(
-                async { runCatching { animeAv1Scraper.getLatestEpisodes(userZone) }.getOrDefault(emptyList()) },
-                async { runCatching { jkAnimeScraper.getLatestEpisodes() }.getOrDefault(emptyList()) },
-                async { runCatching { tioAnimeScraper.getLatestEpisodes() }.getOrDefault(emptyList()) }
-            ).awaitAll().flatten()
-                .distinctBy { "${it.animeTitle.lowercase().trim()}_${it.episodeNumber}" }
-                .take(15)
+            val av1 = async { latestWithRetry { animeAv1Scraper.getLatestEpisodes(userZone) } }
+            val jk = async { latestWithRetry { jkAnimeScraper.getLatestEpisodes() } }
 
-            episodes.map { ep -> async { enrichRecent(ep) } }.awaitAll()
+            (av1.await() + jk.await())
+                .distinctBy { "${it.animeTitle.lowercase().trim()}_${it.episodeNumber}" }
+                .take(need).map { ep -> async { enrichRecent(ep) } }.awaitAll()
         }.getOrDefault(emptyList())
     }
 
     // ── Section 2: Populares ────────────────────────────────────────
-    // Source: AniList trending only
-    private suspend fun fetchPopular(): List<HomeAnimeItem> = runCatching {
-        metadataProvider.getTrending(15)
+    // Source: AniList trending only (1 cheap request)
+    private suspend fun fetchPopular(limit: Int = 5): List<HomeAnimeItem> = runCatching {
+        metadataProvider.getTrending(limit)
             .map { it.toHomeAnimeItem() }
-            .take(10)
+            .take(limit)
     }.getOrDefault(emptyList())
 
     // ── Section 3: Recién Añadidos ──────────────────────────────────
-    // Seasonal ya estrenado (AniList) + título exacto en scrapers + ≥1 episodio confirmado
-    private suspend fun fetchRecentlyAdded(): List<HomeAnimeItem> {
+    // Seasonal ya estrenado (AniList) + título exacto en scrapers + ≥1 episodio confirmado.
+    // Home pide need=5 (rápido); Ver Todo valida el resto con más margen.
+    private suspend fun fetchRecentlyAdded(need: Int = 5, timeoutMs: Long = 25000L): List<HomeAnimeItem> {
         return runCatching {
-            withTimeoutOrNull(25000L) {
-                val seasonal = metadataProvider.getSeasonal(20)
+            withTimeoutOrNull(timeoutMs) {
+                val seasonal = metadataProvider.getSeasonal(40)
                 val valid = mutableListOf<HomeAnimeItem>()
                 for (meta in seasonal) {
-                    if (valid.size >= 10) break
+                    if (valid.size >= need) break
                     if (isConfirmed(meta)) valid += meta.toHomeAnimeItem()
                 }
                 valid
@@ -86,7 +93,14 @@ class HomeRepository(
         }.getOrNull().orEmpty()
     }
 
-    // ponytail: cache 24h en memoria — la disponibilidad cambia lento, el home abre seguido
+    // ponytail: un reintento con pausa — la red móvil falla más que el wifi de pruebas
+    private suspend fun latestWithRetry(block: suspend () -> List<RecentEpisode>): List<RecentEpisode> {
+        runCatching { return block() }
+        kotlinx.coroutines.delay(1500L)
+        val second = runCatching { block() }
+        second.onFailure { android.util.Log.e("HomeRecents", "scraper failed twice", it) }
+        return second.getOrDefault(emptyList())
+    }
     private val availabilityCache = java.util.Collections.synchronizedMap(
         mutableMapOf<String, Pair<Boolean, Long>>()
     )
@@ -166,6 +180,8 @@ data class HomeData(
     val popularItems: List<HomeAnimeItem>,
     val recentlyAddedItems: List<HomeAnimeItem>
 )
+
+enum class SeeAllSection { RECENT, POPULAR, ADDED }
 
 // Match de títulos por tokens canónicos (internal para test local).
 // Igualdad difusa fue el bug ("Golden" ⊂ "Golden Kamuy"); igualdad exacta

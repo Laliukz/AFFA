@@ -112,7 +112,7 @@ class MetadataProviderChain(
         anilistId = id,
         malId = idMal,
         tmdbId = null,
-        title = title.english ?: title.romaji ?: "",
+        title = title.romaji ?: title.english ?: "",
         titleJp = title.native,
         synopsis = description,
         coverImage = coverImage?.large,

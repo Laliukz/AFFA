@@ -32,3 +32,28 @@ val Typography = Typography(
     )
     */
 )
+
+// Hero carousel text styles (reference: blurred-backdrop hero)
+val HeroTitle = TextStyle(
+    fontFamily = FontFamily.Default,
+    fontWeight = FontWeight.ExtraBold,
+    fontSize = 26.sp,
+    lineHeight = 30.sp,
+    letterSpacing = 0.sp,
+    color = AppTextPrimary
+)
+val HeroSynopsis = TextStyle(
+    fontFamily = FontFamily.Default,
+    fontWeight = FontWeight.Normal,
+    fontSize = 13.sp,
+    lineHeight = 18.sp,
+    letterSpacing = 0.2.sp,
+    color = TextGray
+)
+val HeroBadge = TextStyle(
+    fontFamily = FontFamily.Default,
+    fontWeight = FontWeight.Bold,
+    fontSize = 11.sp,
+    letterSpacing = 0.8.sp,
+    color = PrimaryPurple
+)

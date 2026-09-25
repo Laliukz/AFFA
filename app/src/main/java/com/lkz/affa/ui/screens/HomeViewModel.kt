@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.lkz.affa.data.repository.HomeData
 import com.lkz.affa.data.repository.HomeRepository
+import com.lkz.affa.data.repository.SeeAllSection
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -34,4 +35,7 @@ class HomeViewModel(
                 .onFailure { _uiState.value = HomeUiState.Error(it.localizedMessage ?: "Error desconocido") }
         }
     }
+
+    suspend fun loadSeeAll(section: SeeAllSection) =
+        repository.getSeeAll(section)
 }
