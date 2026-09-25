@@ -21,16 +21,40 @@ import com.lkz.affa.core.network.scraper.JkAnimeScraper
 import com.lkz.affa.core.network.scraper.TioAnimeScraper
 import com.lkz.affa.data.repository.HomeRepository
 import com.lkz.affa.ui.screens.AnimeHomeScreen
+import com.lkz.affa.ui.screens.DetailsViewModel
 import com.lkz.affa.ui.screens.HomeViewModel
+import com.lkz.affa.ui.screens.PlayerViewModel
 
+@androidx.media3.common.util.UnstableApi
 class MainActivity : ComponentActivity() {
+
+    private val repository by lazy {
+        HomeRepository(AnimeAv1Scraper(), JkAnimeScraper(), TioAnimeScraper(), MetadataModule.createProvider())
+    }
 
     private val homeViewModel: HomeViewModel by viewModels {
         object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                val repo = HomeRepository(AnimeAv1Scraper(), JkAnimeScraper(), TioAnimeScraper(), MetadataModule.createProvider())
-                return HomeViewModel(repo) as T
+                return HomeViewModel(repository) as T
+            }
+        }
+    }
+
+    val detailsViewModel: DetailsViewModel by viewModels {
+        object : ViewModelProvider.Factory {
+            @Suppress("UNCHECKED_CAST")
+            override fun <T : ViewModel> create(modelClass: Class<T>): T {
+                return DetailsViewModel(repository) as T
+            }
+        }
+    }
+
+    val playerViewModel: PlayerViewModel by viewModels {
+        object : ViewModelProvider.Factory {
+            @Suppress("UNCHECKED_CAST")
+            override fun <T : ViewModel> create(modelClass: Class<T>): T {
+                return PlayerViewModel(applicationContext, repository) as T
             }
         }
     }
@@ -40,7 +64,11 @@ class MainActivity : ComponentActivity() {
         MetadataModule.init(applicationContext)
         enableEdgeToEdge()
         setContent {
-            AnimeHomeScreen(viewModel = homeViewModel)
+            AnimeHomeScreen(
+                viewModel = homeViewModel,
+                detailsViewModel = detailsViewModel,
+                playerViewModel = playerViewModel
+            )
         }
     }
 }

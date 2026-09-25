@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.lkz.affa.data.repository.HomeData
 import com.lkz.affa.data.repository.HomeRepository
 import com.lkz.affa.data.repository.SeeAllSection
+import com.lkz.affa.domain.model.HomeAnimeItem
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -23,19 +24,31 @@ class HomeViewModel(
     private val _uiState = MutableStateFlow<HomeUiState>(HomeUiState.Loading)
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
 
+    private val _isRefreshing = MutableStateFlow(false)
+    val isRefreshing: StateFlow<Boolean> = _isRefreshing.asStateFlow()
+
+    // ponytail: memoria de sesión — Ver Todo no re-pide; el refresh la limpia
+    private val seeAllCache = mutableMapOf<SeeAllSection, List<HomeAnimeItem>>()
+
     init {
         loadHome()
     }
 
     fun loadHome() {
+        val keepList = _uiState.value is HomeUiState.Success
         viewModelScope.launch {
-            _uiState.value = HomeUiState.Loading
+            if (keepList) _isRefreshing.value = true else _uiState.value = HomeUiState.Loading
+            seeAllCache.clear()
             repository.getHomeData()
                 .onSuccess { _uiState.value = HomeUiState.Success(it) }
-                .onFailure { _uiState.value = HomeUiState.Error(it.localizedMessage ?: "Error desconocido") }
+                .onFailure {
+                    if (!keepList) _uiState.value =
+                        HomeUiState.Error(it.localizedMessage ?: "Error desconocido")
+                }
+            _isRefreshing.value = false
         }
     }
 
     suspend fun loadSeeAll(section: SeeAllSection) =
-        repository.getSeeAll(section)
+        seeAllCache.getOrPut(section) { repository.getSeeAll(section) }
 }

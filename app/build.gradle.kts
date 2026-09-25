@@ -55,6 +55,7 @@ dependencies {
     implementation(project(":core:metadata"))
     implementation(libs.coil.compose)
     implementation(libs.androidx.media3.exoplayer)
+    implementation(libs.androidx.media3.ui)
     testImplementation(libs.junit)
     testImplementation(libs.jsoup)
     androidTestImplementation(platform(libs.androidx.compose.bom))
