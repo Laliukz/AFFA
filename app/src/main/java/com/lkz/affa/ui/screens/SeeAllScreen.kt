@@ -47,7 +47,7 @@ fun SeeAllScreen(
     viewModel: HomeViewModel?,
     paddingValues: PaddingValues,
     onBackClick: () -> Unit,
-    onAnimeClick: () -> Unit
+    onAnimeClick: (HomeAnimeItem?) -> Unit
 ) {
     val items by produceState<List<HomeAnimeItem>?>(initialValue = null, section) {
         value = viewModel?.loadSeeAll(section).orEmpty()
@@ -98,7 +98,7 @@ fun SeeAllScreen(
             ) {
                 items(loaded) { item ->
                     Column(
-                        modifier = Modifier.clickable { onAnimeClick() }
+                        modifier = Modifier.clickable { onAnimeClick(item) }
                     ) {
                         Box(
                             modifier = Modifier

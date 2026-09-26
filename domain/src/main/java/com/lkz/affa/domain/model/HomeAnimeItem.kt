@@ -9,5 +9,6 @@ data class HomeAnimeItem(
     val score: Double? = null,
     val genres: List<String> = emptyList(),
     val latestEpisode: Float? = null,
-    val episodeUrl: String? = null
+    val episodeUrl: String? = null,
+    val synonyms: List<String> = emptyList()
 )

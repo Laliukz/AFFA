@@ -1,384 +1,473 @@
 package com.lkz.affa.ui.screens
 
-import android.os.Bundle
-import androidx.activity.ComponentActivity
-import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.Fullscreen
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.SkipNext
+import androidx.compose.material.icons.filled.SkipPrevious
+import androidx.compose.material.icons.filled.VolumeUp
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.media3.exoplayer.offline.Download
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.media3.common.Player
+import androidx.media3.common.util.UnstableApi
+import androidx.media3.ui.PlayerView
+import com.lkz.affa.domain.model.Episode as DomainEpisode
 import com.lkz.affa.ui.components.EpisodeItem
-import com.lkz.affa.ui.theme.*
+import com.lkz.affa.ui.components.toUiEpisode
+import com.lkz.affa.ui.theme.AppPrimary
+import com.lkz.affa.ui.theme.AppTextPrimary
+import com.lkz.affa.ui.theme.CardBackground
+import com.lkz.affa.ui.theme.DarkBackground
+import com.lkz.affa.ui.theme.PrimaryPurple
+import com.lkz.affa.ui.theme.ServerIndicatorGreen
+import com.lkz.affa.ui.theme.TextGray
 
-class NowPlayingActivity : ComponentActivity() {
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        setContent {
-            MaterialTheme {
-                NowPlayingScreen()
-            }
+@UnstableApi
+@Composable
+fun NowPlayingScreen(
+    animeTitle: String,
+    animeImageUrl: String,
+    aliases: List<String>,
+    episode: DomainEpisode?,
+    episodes: List<DomainEpisode>,
+    viewModel: PlayerViewModel?,
+    onBackClick: () -> Unit = {}
+) {
+    LaunchedEffect(episode?.url) {
+        if (episode != null) viewModel?.load(animeTitle, aliases, episode, episodes)
+    }
+    DisposableEffect(Unit) {
+        onDispose {
+            viewModel?.player?.playWhenReady = false
+            viewModel?.player?.stop()
         }
     }
-}
+    val state = viewModel?.uiState?.collectAsStateWithLifecycle()?.value
+    val current = viewModel?.currentEpisode?.collectAsStateWithLifecycle()?.value ?: episode
+    val all = viewModel?.allEpisodes()?.takeIf { it.isNotEmpty() } ?: episodes
+    val prev = all.filter { it.number < (current?.number ?: Float.MAX_VALUE) }.maxByOrNull { it.number }
+    val next = all.filter { it.number > (current?.number ?: Float.MIN_VALUE) }.minByOrNull { it.number }
 
-@Composable
-fun NowPlayingScreen(onBackClick: () -> Unit = {}) {
-    var selectedTab by remember { mutableStateOf(0) }
-    val tabs = listOf("Info", "Similares")
-
-    Scaffold(
-        containerColor = DarkBackground
-    ) { paddingValues ->
+    Scaffold(containerColor = DarkBackground) { paddingValues ->
         LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues),
+            modifier = Modifier.fillMaxSize().padding(paddingValues),
             contentPadding = PaddingValues(bottom = 32.dp)
         ) {
-            // Reproductor de video superior
             item {
-                VideoPlayerSection(onBackClick = onBackClick)
-            }
-
-            // Metadatos y Acciones del Episodio
-            item {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "EPISODIO 1072",
-                            color = PrimaryPurple,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
-                            letterSpacing = 1.sp
-                        )
-                        Icon(
-                            imageVector = Icons.Default.Bookmark,
-                            contentDescription = "Bookmark",
-                            tint = Color.White,
-                            modifier = Modifier.size(20.dp)
+                val player = viewModel?.player
+                var isPlaying by remember { mutableStateOf(false) }
+                var position by remember { mutableStateOf(0L) }
+                var duration by remember { mutableStateOf(0L) }
+                var controlsVisible by remember { mutableStateOf(true) }
+                val context = LocalContext.current
+                val audio = remember {
+                    context.getSystemService(android.content.Context.AUDIO_SERVICE)
+                        as android.media.AudioManager
+                }
+                val maxVol = remember {
+                    audio.getStreamMaxVolume(android.media.AudioManager.STREAM_MUSIC)
+                }
+                var volume by remember {
+                    mutableStateOf(audio.getStreamVolume(android.media.AudioManager.STREAM_MUSIC))
+                }
+                DisposableEffect(player) {
+                    val listener = object : Player.Listener {
+                        override fun onIsPlayingChanged(v: Boolean) { isPlaying = v }
+                    }
+                    player?.addListener(listener)
+                    onDispose { player?.removeListener(listener) }
+                }
+                LaunchedEffect(player) {
+                    while (true) {
+                        position = player?.currentPosition ?: 0L
+                        duration = player?.duration?.takeIf { it > 0 } ?: duration
+                        kotlinx.coroutines.delay(500L)
+                    }
+                }
+                // Auto-oculta controles a los 3s reproduciendo; en pausa quedan visibles
+                LaunchedEffect(isPlaying, controlsVisible) {
+                    if (controlsVisible && isPlaying) {
+                        kotlinx.coroutines.delay(3000L)
+                        controlsVisible = false
+                    }
+                }
+                Box(
+                    modifier = Modifier.fillMaxWidth().aspectRatio(16f / 9f).background(Color.Black)
+                ) {
+                    if (player != null) {
+                        AndroidView(
+                            factory = {
+                                PlayerView(it).apply {
+                                    this.player = player
+                                    useController = false
+                                }
+                            },
+                            modifier = Modifier.fillMaxSize()
                         )
                     }
-
-                    Spacer(modifier = Modifier.height(4.dp))
-
-                    Text(
-                        text = "The Power of Gear 5! The Drum of Liberation",
-                        color = Color.White,
-                        fontSize = 22.sp,
-                        fontWeight = FontWeight.Bold,
-                        lineHeight = 28.sp
+                    // Tap alterna controles
+                    Box(
+                        modifier = Modifier.fillMaxSize().clickable(
+                            indication = null,
+                            interactionSource = remember { MutableInteractionSource() }
+                        ) { controlsVisible = !controlsVisible }
                     )
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    IconButton(
+                        onClick = onBackClick,
+                        modifier = Modifier
+                            .padding(12.dp)
+                            .background(Color.Black.copy(alpha = 0.4f), CircleShape)
+                            .size(36.dp)
                     ) {
-                        Text(text = "Released Aug 2023", color = TextGray, fontSize = 12.sp)
-                        Text(text = "•", color = TextGray, fontSize = 12.sp)
-                        Spacer(modifier = Modifier.weight(1f))
-                        Button(
-                            onClick = { },
-                            colors = ButtonDefaults.buttonColors(containerColor = CardBackground),
-                            shape = RoundedCornerShape(50),
-                            contentPadding = PaddingValues(horizontal = 16.dp),
-                            modifier = Modifier.height(40.dp)
-                        ) {
-                            Icon(imageVector = Icons.Default.Download, contentDescription = "Save", tint = Color.White, modifier = Modifier.size(16.dp))
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(text = "Save", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(20.dp))
-                    HorizontalDivider(color = Color(0xFF262030), thickness = 1.dp)
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    // Selector de Servidores
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "Select Server",
-                            color = Color.White,
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.Bold
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Atrás",
+                            tint = Color.White
                         )
                     }
-
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .horizontalScroll(rememberScrollState()),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        ServerChip(name = "Mega Cloud", isSelected = true, indicatorColor = ServerIndicatorGreen)
-                        ServerChip(name = "VidStream", isSelected = false, indicatorColor = ServerIndicatorGreen)
-                        ServerChip(name = "Mirror 1", isSelected = false)
-                    }
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    // Botones de Navegación de Episodios (Ep 1071 / Ep 1073)
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        OutlinedButton(
-                            onClick = { },
-                            colors = ButtonDefaults.outlinedButtonColors(containerColor = CardBackground),
-                            border = ButtonDefaults.outlinedButtonBorder.copy(brush = androidx.compose.ui.graphics.SolidColor(Color.Transparent)),
-                            shape = RoundedCornerShape(12.dp),
+                    if (controlsVisible) {
+                        Column(
                             modifier = Modifier
-                                .weight(1f)
-                                .height(46.dp)
+                                .align(Alignment.BottomStart)
+                                .fillMaxWidth()
+                                .background(Color.Black.copy(alpha = 0.55f))
+                                .padding(horizontal = 8.dp, vertical = 4.dp)
                         ) {
-                            Icon(imageVector = Icons.Default.SkipPrevious, contentDescription = "Prev", tint = Color.White)
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(text = "Ep 1071", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                        }
-
-                        Button(
-                            onClick = { },
-                            colors = ButtonDefaults.buttonColors(containerColor = Color.White),
-                            shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(46.dp)
-                        ) {
-                            Text(text = "Ep 1073", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Icon(imageVector = Icons.Default.SkipNext, contentDescription = "Next", tint = Color.Black)
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(24.dp))
-
-                    // Pestañas (Info, Comments, Related)
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(32.dp)
-                    ) {
-                        tabs.forEachIndexed { index, tabName ->
-                            val isSelected = selectedTab == index
-                            Column(
-                                modifier = Modifier.clickable { selectedTab = index },
-                                horizontalAlignment = Alignment.CenterHorizontally
+                            Slider(
+                                value = position.toFloat(),
+                                onValueChange = { player?.seekTo(it.toLong()) },
+                                valueRange = 0f..duration.coerceAtLeast(1L).toFloat(),
+                                colors = SliderDefaults.colors(
+                                    thumbColor = PrimaryPurple,
+                                    activeTrackColor = PrimaryPurple,
+                                    inactiveTrackColor = Color.Gray
+                                ),
+                                modifier = Modifier.fillMaxWidth().height(16.dp)
+                            )
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.fillMaxWidth()
                             ) {
-                                Text(
-                                    text = tabName,
-                                    color = if (isSelected) Color.White else TextGray,
-                                    fontSize = 15.sp,
-                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                                IconButton(onClick = {
+                                    if (isPlaying) player?.pause() else player?.play()
+                                }) {
+                                    Icon(
+                                        imageVector = if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
+                                        contentDescription = if (isPlaying) "Pausar" else "Reproducir",
+                                        tint = Color.White
+                                    )
+                                }
+                                IconButton(onClick = {
+                                    viewModel?.next()?.let { viewModel.playEpisode(it) }
+                                }) {
+                                    Icon(
+                                        imageVector = Icons.Filled.SkipNext,
+                                        contentDescription = "Siguiente",
+                                        tint = Color.White
+                                    )
+                                }
+                                Icon(
+                                    imageVector = Icons.Filled.VolumeUp,
+                                    contentDescription = "Volumen",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(20.dp)
                                 )
-                                Spacer(modifier = Modifier.height(6.dp))
-                                if (isSelected) {
-                                    Box(
-                                        modifier = Modifier
-                                            .width(28.dp)
-                                            .height(3.dp)
-                                            .background(PrimaryPurple, RoundedCornerShape(2.dp))
+                                Slider(
+                                    value = volume.toFloat(),
+                                    onValueChange = {
+                                        volume = it.toInt()
+                                        audio.setStreamVolume(
+                                            android.media.AudioManager.STREAM_MUSIC, volume, 0
+                                        )
+                                    },
+                                    valueRange = 0f..maxVol.toFloat(),
+                                    steps = maxVol - 1,
+                                    modifier = Modifier.width(90.dp).height(20.dp)
+                                )
+                                Text(
+                                    text = "${fmtTime(position)} / ${fmtTime(duration)}",
+                                    color = Color.White,
+                                    fontSize = 12.sp,
+                                    modifier = Modifier.padding(start = 4.dp)
+                                )
+                                Spacer(modifier = Modifier.weight(1f))
+                                Text(
+                                    text = "+85s",
+                                    color = Color.White,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier
+                                        .clickable { viewModel?.skipForward() }
+                                        .padding(10.dp)
+                                )
+                                IconButton(onClick = {
+                                    (context as? android.app.Activity)?.let { activity ->
+                                        activity.requestedOrientation =
+                                            if (activity.resources.configuration.orientation ==
+                                                android.content.res.Configuration.ORIENTATION_LANDSCAPE
+                                            ) {
+                                                android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+                                            } else {
+                                                android.content.pm.ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+                                            }
+                                    }
+                                }) {
+                                    Icon(
+                                        imageVector = Icons.Filled.Fullscreen,
+                                        contentDescription = "Pantalla completa",
+                                        tint = Color.White
                                     )
                                 }
                             }
                         }
                     }
+                    if (state == null || state is PlayerUiState.LoadingServers) {
+                        Column(
+                            modifier = Modifier.fillMaxSize(),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
+                        ) {
+                            CircularProgressIndicator(color = AppPrimary)
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = "Buscando servidores…",
+                                color = Color.White,
+                                fontSize = 13.sp
+                            )
+                        }
+                    }
+                    if (state is PlayerUiState.Error) {
+                        Column(
+                            modifier = Modifier.fillMaxSize(),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
+                        ) {
+                            Text(text = state.message, color = Color.White, fontSize = 13.sp)
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Button(
+                                onClick = { viewModel?.retry() },
+                                colors = ButtonDefaults.buttonColors(containerColor = AppPrimary),
+                                shape = RoundedCornerShape(16.dp)
+                            ) { Text("Reintentar", color = AppTextPrimary) }
+                        }
+                    }
+                }
+            }
 
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    // Descripción / Sinopsis
+            item {
+                Column(modifier = Modifier.padding(16.dp)) {
                     Text(
-                        text = "As the battle on the rooftop rages on, Luffy awakens a new power that baffles Kaido. The heartbeat of the Drums of Liberation resonates across Onigashima. Is this the return of Joy Boy?",
-                        color = TextGray,
-                        fontSize = 13.sp,
-                        lineHeight = 18.sp
+                        text = current?.let {
+                            val n = if (it.number % 1 == 0f) it.number.toInt().toString() else it.number.toString()
+                            "EPISODIO $n"
+                        } ?: "",
+                        color = PrimaryPurple,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 1.sp
                     )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = animeTitle,
+                        color = Color.White,
+                        fontSize = 22.sp,
+                        fontWeight = FontWeight.Bold,
+                        lineHeight = 28.sp,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Spacer(modifier = Modifier.weight(1f))
+                        // ponytail: descarga sin funcionalidad por ahora
+                        Button(
+                            onClick = {},
+                            colors = ButtonDefaults.buttonColors(containerColor = CardBackground),
+                            shape = RoundedCornerShape(50),
+                            contentPadding = PaddingValues(horizontal = 16.dp),
+                            modifier = Modifier.height(40.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Download,
+                                contentDescription = "Descargar",
+                                tint = Color.White,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "Descargar",
+                                color = Color.White,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(20.dp))
 
+                    Text(
+                        text = "Servidores",
+                        color = Color.White,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold
+                    )
                     Spacer(modifier = Modifier.height(12.dp))
-
-                    // Etiquetas de género
+                    val ready = state as? PlayerUiState.Ready
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        val genres = listOf("Action", "Adventure", "Fantasy", "Shonen")
-                        genres.forEach { genre ->
-                            Box(
-                                modifier = Modifier
-                                    .background(CardBackground, RoundedCornerShape(6.dp))
-                                    .padding(horizontal = 10.dp, vertical = 6.dp)
-                            ) {
-                                Text(text = genre, color = TextGray, fontSize = 11.sp, fontWeight = FontWeight.Medium)
+                        if (ready == null) {
+                            Text(text = "Resolviendo…", color = TextGray, fontSize = 13.sp)
+                        } else {
+                            ready.servers.forEachIndexed { index, server ->
+                                ServerChip(
+                                    name = server.name,
+                                    isSelected = index == ready.selectedIndex,
+                                    indicatorColor = ServerIndicatorGreen,
+                                    enabled = !ready.switching,
+                                    onClick = { viewModel?.switchServer(index) }
+                                )
                             }
                         }
                     }
+                    Spacer(modifier = Modifier.height(16.dp))
 
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Button(
+                            onClick = { prev?.let { viewModel?.playEpisode(it) } },
+                            enabled = prev != null,
+                            colors = ButtonDefaults.buttonColors(containerColor = CardBackground),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.weight(1f).height(46.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.SkipPrevious,
+                                contentDescription = "Anterior",
+                                tint = Color.White,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = prev?.let { "Ep ${epNum(it.number)}" } ?: "—",
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 14.sp
+                            )
+                        }
+                        Button(
+                            onClick = { next?.let { viewModel?.playEpisode(it) } },
+                            enabled = next != null,
+                            colors = ButtonDefaults.buttonColors(containerColor = Color.White),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.weight(1f).height(46.dp)
+                        ) {
+                            Text(
+                                text = next?.let { "Ep ${epNum(it.number)}" } ?: "—",
+                                color = Color.Black,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 14.sp
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Icon(
+                                imageVector = Icons.Default.SkipNext,
+                                contentDescription = "Siguiente",
+                                tint = Color.Black,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                    }
                     Spacer(modifier = Modifier.height(28.dp))
 
-                    // Sección "Next Episode"
-                    Text(
-                        text = "Next Episode",
-                        color = Color.White,
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    // Tarjeta del siguiente episodio reutilizando EpisodeItem
-                    val nextEpisode = Episode(
-                        number = "E1073",
-                        title = "No Way Out! A Hellish Scene on Onigashima",
-                        duration = "23m",
-                        description = "The battle intense on Onigashima as fire spreads through the castle."
-                    )
-                    EpisodeItem(episode = nextEpisode)
+                    if (next != null) {
+                        Text(
+                            text = "Next Episode",
+                            color = Color.White,
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        EpisodeItem(
+                            episode = next.toUiEpisode(),
+                            imageUrl = animeImageUrl,
+                            onClick = { viewModel?.playEpisode(next) }
+                        )
+                    }
                 }
             }
         }
     }
 }
 
-@Composable
-fun VideoPlayerSection(onBackClick: () -> Unit = {}) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(240.dp)
-            .background(Color.Black)
-    ) {
-        // Placeholder del video / fotograma principal
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(Color.DarkGray)
-        )
+private fun epNum(n: Float): String = if (n % 1 == 0f) n.toInt().toString() else n.toString()
 
-        // Barra superior del reproductor (Atrás, Título, Ajustes, Cast)
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(12.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            IconButton(
-                onClick = onBackClick,
-                modifier = Modifier
-                    .background(Color.Black.copy(alpha = 0.4f), CircleShape)
-                    .size(36.dp)
-            ) {
-                Icon(imageVector = Icons.Default.ArrowBack, contentDescription = "Back", tint = Color.White)
-            }
-
-            Text(
-                text = "NOW PLAYING",
-                color = Color.White,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Bold,
-                letterSpacing = 1.sp
-            )
-
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Icon(imageVector = Icons.Default.Settings, contentDescription = "Settings", tint = Color.White, modifier = Modifier.size(22.dp))
-            }
-        }
-
-        // Controles centrales del reproductor (Retroceder 10s, Play, Adelantar 10s)
-        Row(
-            modifier = Modifier.align(Alignment.Center),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(32.dp)
-        ) {
-            Icon(imageVector = Icons.Default.Replay10, contentDescription = "Rewind 10s", tint = Color.White, modifier = Modifier.size(32.dp))
-
-            Box(
-                modifier = Modifier
-                    .size(56.dp)
-                    .background(PrimaryPurple, CircleShape),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(imageVector = Icons.Default.PlayArrow, contentDescription = "Play", tint = Color.White, modifier = Modifier.size(32.dp))
-            }
-
-            Icon(imageVector = Icons.Default.Forward10, contentDescription = "Forward 10s", tint = Color.White, modifier = Modifier.size(32.dp))
-        }
-
-        // Barra inferior de progreso del reproductor
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .align(Alignment.BottomStart)
-                .background(Color.Black.copy(alpha = 0.3f))
-                .padding(horizontal = 12.dp, vertical = 8.dp)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text(text = "04:20", color = Color.White, fontSize = 10.sp)
-                Text(text = "23:14", color = Color.White, fontSize = 10.sp)
-            }
-            Spacer(modifier = Modifier.height(4.dp))
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(3.dp)
-                    .background(Color.Gray.copy(alpha = 0.5f), RoundedCornerShape(2.dp))
-            ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth(0.25f)
-                        .height(3.dp)
-                        .background(PrimaryPurple, RoundedCornerShape(2.dp))
-                )
-            }
-        }
-
-        // Icono de pantalla completa flotante abajo a la derecha
-        Icon(
-            imageVector = Icons.Default.Fullscreen,
-            contentDescription = "Fullscreen",
-            tint = Color.White,
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(16.dp)
-                .size(24.dp)
-        )
-    }
+private fun fmtTime(ms: Long): String {
+    if (ms <= 0L) return "0:00"
+    val s = (ms / 1000).toInt()
+    return "${s / 60}:${(s % 60).toString().padStart(2, '0')}"
 }
 
 @Composable
-fun ServerChip(name: String, isSelected: Boolean, indicatorColor: Color? = null) {
+fun ServerChip(
+    name: String,
+    isSelected: Boolean,
+    indicatorColor: Color? = null,
+    enabled: Boolean = true,
+    onClick: () -> Unit = {}
+) {
     Button(
-        onClick = { },
+        onClick = onClick,
+        enabled = enabled,
         colors = ButtonDefaults.buttonColors(
             containerColor = if (isSelected) PrimaryPurple else CardBackground
         ),
@@ -388,9 +477,7 @@ fun ServerChip(name: String, isSelected: Boolean, indicatorColor: Color? = null)
     ) {
         if (indicatorColor != null) {
             Box(
-                modifier = Modifier
-                    .size(8.dp)
-                    .background(indicatorColor, CircleShape)
+                modifier = Modifier.size(8.dp).background(indicatorColor, CircleShape)
             )
             Spacer(modifier = Modifier.width(8.dp))
         }

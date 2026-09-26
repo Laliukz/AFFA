@@ -101,6 +101,101 @@ class HomeRepository(
         second.onFailure { android.util.Log.e("HomeRecents", "scraper failed twice", it) }
         return second.getOrDefault(emptyList())
     }
+
+    // ── Details: lista de episodios ───────────────────────────────
+    // Av1 → Jk → Tio con match canónico; primer scraper con lista no vacía.
+    // ponytail: memoria de sesión — volver atrás o desde segundo plano no re-pide
+    private val detailsCache = java.util.Collections.synchronizedMap(
+        mutableMapOf<String, com.lkz.affa.domain.model.AnimeDetails>()
+    )
+
+    suspend fun getAnimeDetails(
+        title: String,
+        synonyms: List<String>,
+        timeoutMs: Long = 30000L
+    ): com.lkz.affa.domain.model.AnimeDetails? = withContext(Dispatchers.IO) {
+        val key = normalizeTitle(title).joinToString(" ")
+        detailsCache[key]?.let { return@withContext it }
+        runCatching {
+            withTimeoutOrNull(timeoutMs) {
+                val aliases = (listOf(title) + synonyms).toSet()
+                val av1Hit = runCatching {
+                    animeAv1Scraper.search(title).firstOrNull { titleMatches(it.title, aliases) }
+                }.getOrNull()
+                if (av1Hit != null) {
+                    val d = runCatching { animeAv1Scraper.getAnimeDetails(av1Hit.slug) }.getOrNull()
+                    if (d != null && d.episodes.isNotEmpty()) return@withTimeoutOrNull d
+                }
+                val jkHit = runCatching {
+                    jkAnimeScraper.search(title).firstOrNull { titleMatches(it.title, aliases) }
+                }.getOrNull()
+                if (jkHit != null) {
+                    val d = runCatching { jkAnimeScraper.getAnimeDetails(jkHit.slug) }.getOrDefault(null)
+                    if (d != null && d.episodes.isNotEmpty()) return@withTimeoutOrNull d
+                }
+                val tioHit = runCatching {
+                    tioAnimeScraper.search(title).firstOrNull { titleMatches(it.title, aliases) }
+                }.getOrNull()
+                if (tioHit != null) {
+                    runCatching { tioAnimeScraper.getAnimeDetails(tioHit.slug) }.getOrNull()
+                        ?.takeIf { it.episodes.isNotEmpty() }
+                } else null
+            }
+        }.getOrNull()?.also { detailsCache[key] = it }
+    }
+
+    suspend fun getAnimeEpisodes(
+        title: String,
+        synonyms: List<String>,
+        timeoutMs: Long = 30000L
+    ): List<com.lkz.affa.domain.model.Episode> =
+        getAnimeDetails(title, synonyms, timeoutMs)?.episodes.orEmpty()
+
+    // Servidores agregados Tio → Jk → Av1 (mp4 primero por compatibilidad).
+    // En paralelo; lo que no responda en el tope queda fuera sin romper.
+    suspend fun getEpisodeServers(
+        title: String,
+        synonyms: List<String>,
+        episodeNumber: Float,
+        timeoutMs: Long = 20000L
+    ): List<com.lkz.affa.domain.model.VideoServer> = withContext(Dispatchers.IO) {
+        runCatching {
+            withTimeoutOrNull(timeoutMs) {
+                val aliases = (listOf(title) + synonyms).toSet()
+                suspend fun fromTio() = runCatching {
+                    val hit = tioAnimeScraper.search(title).firstOrNull { titleMatches(it.title, aliases) }
+                        ?: return@runCatching emptyList()
+                    val ep = tioAnimeScraper.getAnimeDetails(hit.slug).episodes
+                        .firstOrNull { it.number == episodeNumber } ?: return@runCatching emptyList()
+                    tioAnimeScraper.getVideoServers(ep.url)
+                        .map { it.copy(name = "${it.name} · Tio") }
+                }.getOrDefault(emptyList())
+                suspend fun fromJk() = runCatching {
+                    val hit = jkAnimeScraper.search(title).firstOrNull { titleMatches(it.title, aliases) }
+                        ?: return@runCatching emptyList()
+                    val ep = jkAnimeScraper.getAnimeDetails(hit.slug).episodes
+                        .firstOrNull { it.number == episodeNumber } ?: return@runCatching emptyList()
+                    jkAnimeScraper.getVideoServers(ep.url)
+                        .map { it.copy(name = "${it.name} · Jk") }
+                }.getOrDefault(emptyList())
+                suspend fun fromAv1() = runCatching {
+                    val hit = animeAv1Scraper.search(title).firstOrNull { titleMatches(it.title, aliases) }
+                        ?: return@runCatching emptyList()
+                    val ep = animeAv1Scraper.getAnimeDetails(hit.slug).episodes
+                        .firstOrNull { it.number == episodeNumber } ?: return@runCatching emptyList()
+                    animeAv1Scraper.getVideoServers(ep.url)
+                        .map { it.copy(name = "${it.name} · Av1") }
+                }.getOrDefault(emptyList())
+                coroutineScope {
+                    val tio = async { fromTio() }
+                    val jk = async { fromJk() }
+                    val av1 = async { fromAv1() }
+                    tio.await() + jk.await() + av1.await()
+                }
+            }.orEmpty()
+        }.getOrDefault(emptyList())
+    }
+
     private val availabilityCache = java.util.Collections.synchronizedMap(
         mutableMapOf<String, Pair<Boolean, Long>>()
     )
@@ -143,7 +238,8 @@ class HomeRepository(
             score = score,
             genres = genres,
             latestEpisode = null,
-            episodeUrl = null
+            episodeUrl = null,
+            synonyms = synonyms
         )
     }
 

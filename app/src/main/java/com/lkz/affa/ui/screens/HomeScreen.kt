@@ -16,6 +16,7 @@ import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material.icons.filled.*
 
 import androidx.compose.material3.*
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -48,9 +49,16 @@ import com.lkz.affa.data.repository.HomeRepository
 import com.lkz.affa.data.repository.SeeAllSection
 import com.lkz.affa.domain.model.HomeAnimeItem
 
+@OptIn(androidx.media3.common.util.UnstableApi::class)
 @Composable
-fun AnimeHomeScreen(viewModel: HomeViewModel? = null) {
+fun AnimeHomeScreen(
+    viewModel: HomeViewModel? = null,
+    detailsViewModel: DetailsViewModel? = null,
+    playerViewModel: PlayerViewModel? = null
+) {
     var currentScreen by remember { mutableStateOf("home") }
+    var selected by remember { mutableStateOf<HomeAnimeItem?>(null) }
+    var playEp by remember { mutableStateOf<com.lkz.affa.domain.model.Episode?>(null) }
     var seeAll by remember { mutableStateOf<Pair<String, SeeAllSection>?>(null) }
     val uiState by viewModel?.uiState?.collectAsStateWithLifecycle()
         ?: remember { mutableStateOf(HomeUiState.Loading) }
@@ -58,12 +66,25 @@ fun AnimeHomeScreen(viewModel: HomeViewModel? = null) {
     when (currentScreen) {
         "details" -> {
             AnimeDetailScreen(
+                item = selected,
+                viewModel = detailsViewModel,
                 onBackClick = { currentScreen = "home" },
-                onEpisodeClick = { currentScreen = "player" }
+                onEpisodeClick = { ep ->
+                    playEp = ep
+                    currentScreen = "player"
+                }
             )
         }
         "player" -> {
+            val details =
+                detailsViewModel?.uiState?.collectAsStateWithLifecycle()?.value as? DetailsUiState.Success
             NowPlayingScreen(
+                animeTitle = selected?.title ?: "",
+                animeImageUrl = selected?.imageUrl ?: "",
+                aliases = ((selected?.let { listOf(it.title) }.orEmpty()) + (selected?.synonyms.orEmpty())),
+                episode = playEp,
+                episodes = details?.episodes.orEmpty(),
+                viewModel = playerViewModel,
                 onBackClick = { currentScreen = "details" }
             )
         }
@@ -128,13 +149,23 @@ fun AnimeHomeScreen(viewModel: HomeViewModel? = null) {
                                 viewModel = viewModel,
                                 paddingValues = paddingValues,
                                 onBackClick = { seeAll = null },
-                                onAnimeClick = { currentScreen = "details" }
+                                onAnimeClick = { item ->
+                                    selected = item
+                                    currentScreen = "details"
+                                }
                             )
                         } else {
+                            val refreshing by viewModel?.isRefreshing?.collectAsStateWithLifecycle()
+                                ?: remember { mutableStateOf(false) }
                             HomeContent(
                                 data = state.data,
                                 paddingValues = paddingValues,
-                                onAnimeClick = { currentScreen = "details" },
+                                isRefreshing = refreshing,
+                                onRefresh = { viewModel?.loadHome() },
+                                onAnimeClick = { item ->
+                                    selected = item
+                                    currentScreen = "details"
+                                },
                                 onSeeAll = { title, section -> seeAll = title to section }
                             )
                         }
@@ -149,18 +180,26 @@ fun AnimeHomeScreen(viewModel: HomeViewModel? = null) {
 private fun HomeContent(
     data: HomeData,
     paddingValues: PaddingValues,
-    onAnimeClick: () -> Unit,
+    isRefreshing: Boolean,
+    onRefresh: () -> Unit,
+    onAnimeClick: (HomeAnimeItem?) -> Unit,
     onSeeAll: (String, SeeAllSection) -> Unit
 ) {
-    Column(
+    PullToRefreshBox(
+        isRefreshing = isRefreshing,
+        onRefresh = onRefresh,
         modifier = Modifier
             .fillMaxSize()
             .padding(paddingValues)
-            .verticalScroll(rememberScrollState())
     ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+        ) {
         TopBar()
-        HeroCarousel(items = data.heroItems, onAnimeClick = { onAnimeClick() })
-        ContinueWatchingSection(onAnimeClick = onAnimeClick)
+        HeroCarousel(items = data.heroItems, onAnimeClick = { item -> onAnimeClick(item) })
+        ContinueWatchingSection(onAnimeClick = { onAnimeClick(null) })
         TodayEpisodes(
             items = data.recentEpisodes,
             onAnimeClick = onAnimeClick,
@@ -177,6 +216,7 @@ private fun HomeContent(
             onSeeAll = { onSeeAll("Recién Añadidos", SeeAllSection.ADDED) }
         )
         Spacer(modifier = Modifier.height(24.dp))
+        }
     }
 }
 
@@ -226,7 +266,7 @@ fun ContinueWatchingSection(onAnimeClick: () -> Unit) {
 @Composable
 fun TodayEpisodes(
     items: List<HomeAnimeItem>,
-    onAnimeClick: () -> Unit,
+    onAnimeClick: (HomeAnimeItem?) -> Unit,
     onSeeAll: () -> Unit = {}
 ) {
     SectionHeader(title = "Episodios Recientes", showSeeAll = true, onSeeAll = onSeeAll)
@@ -239,7 +279,7 @@ fun TodayEpisodes(
             Column(
                 modifier = Modifier
                     .width(150.dp)
-                    .clickable { onAnimeClick() }
+                    .clickable { onAnimeClick(item) }
             ) {
                 Box(
                     modifier = Modifier
@@ -289,7 +329,7 @@ fun TodayEpisodes(
 @Composable
 fun PopularSection(
     items: List<HomeAnimeItem>,
-    onAnimeClick: () -> Unit,
+    onAnimeClick: (HomeAnimeItem?) -> Unit,
     onSeeAll: () -> Unit = {}
 ) {
     SectionHeader(title = "Populares", showSeeAll = true, onSeeAll = onSeeAll)
@@ -302,7 +342,7 @@ fun PopularSection(
             Column(
                 modifier = Modifier
                     .width(150.dp)
-                    .clickable { onAnimeClick() }
+                    .clickable { onAnimeClick(item) }
             ) {
                 Box(
                     modifier = Modifier
@@ -365,7 +405,7 @@ fun PopularSection(
 @Composable
 fun RecentlyAddedSection(
     items: List<HomeAnimeItem>,
-    onAnimeClick: () -> Unit,
+    onAnimeClick: (HomeAnimeItem?) -> Unit,
     onSeeAll: () -> Unit = {}
 ) {
     SectionHeader(title = "Recién Añadidos", showSeeAll = true, onSeeAll = onSeeAll)
@@ -378,7 +418,7 @@ fun RecentlyAddedSection(
             Column(
                 modifier = Modifier
                     .width(150.dp)
-                    .clickable { onAnimeClick() }
+                    .clickable { onAnimeClick(item) }
             ) {
                 Box(
                     modifier = Modifier
