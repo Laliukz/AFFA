@@ -34,6 +34,10 @@ class ExploreViewModel(private val repository: HomeRepository) : ViewModel() {
     private var currentPage = 1
     private var currentParams = ExploreParams("", null, null, null, "POPULARITY_DESC")
 
+    // Posicion del scroll: sobrevive al ir a detalles y volver
+    var gridIndex: Int = 0
+    var gridOffset: Int = 0
+
     @OptIn(FlowPreview::class)
     fun observe() {
         viewModelScope.launch {

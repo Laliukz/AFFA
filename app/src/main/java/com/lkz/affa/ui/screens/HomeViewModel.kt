@@ -30,6 +30,36 @@ class HomeViewModel(
     // ponytail: memoria de sesión — Ver Todo no re-pide; el refresh la limpia
     private val seeAllCache = mutableMapOf<SeeAllSection, List<HomeAnimeItem>>()
 
+    // Recien Anadidos paginado (scroll infinito en Ver Todo)
+    private val _addedItems = MutableStateFlow<List<HomeAnimeItem>>(emptyList())
+    val addedItems: StateFlow<List<HomeAnimeItem>> = _addedItems.asStateFlow()
+    private val _addedHasMore = MutableStateFlow(true)
+    val addedHasMore: StateFlow<Boolean> = _addedHasMore.asStateFlow()
+    private val _addedLoadingMore = MutableStateFlow(false)
+    val addedLoadingMore: StateFlow<Boolean> = _addedLoadingMore.asStateFlow()
+    private var addedPage = 0
+
+    fun loadAddedPage() {
+        if (_addedLoadingMore.value || !_addedHasMore.value) return
+        viewModelScope.launch {
+            _addedLoadingMore.value = true
+            runCatching { repository.loadAddedPage(addedPage) }
+                .onSuccess { (items, hasMore) ->
+                    _addedItems.value = _addedItems.value + items
+                    _addedHasMore.value = hasMore
+                    addedPage++
+                }
+            _addedLoadingMore.value = false
+        }
+    }
+
+    private fun resetAdded() {
+        addedPage = 0
+        _addedItems.value = emptyList()
+        _addedHasMore.value = true
+        _addedLoadingMore.value = false
+    }
+
     init {
         loadHome()
     }
@@ -39,6 +69,7 @@ class HomeViewModel(
         viewModelScope.launch {
             if (keepList) _isRefreshing.value = true else _uiState.value = HomeUiState.Loading
             seeAllCache.clear()
+            resetAdded()
             repository.getHomeData()
                 .onSuccess { _uiState.value = HomeUiState.Success(it) }
                 .onFailure {

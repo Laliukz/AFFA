@@ -129,6 +129,7 @@ private fun DetailsContent(
     onBackClick: () -> Unit,
     onEpisodeClick: (com.lkz.affa.domain.model.Episode) -> Unit
 ) {
+    var watched by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(setOf<String>()) }
     LazyColumn(
         modifier = Modifier.fillMaxSize().padding(paddingValues),
         contentPadding = PaddingValues(bottom = 24.dp)
@@ -323,7 +324,15 @@ private fun DetailsContent(
             }
         } else {
             items(pairs) { (dom, ui) ->
-                EpisodeItem(episode = ui, imageUrl = posterUrl, onClick = { onEpisodeClick(dom) })
+                EpisodeItem(
+                    episode = ui,
+                    imageUrl = posterUrl,
+                    isWatched = dom.url in watched,
+                    onClick = { onEpisodeClick(dom) },
+                    onWatchedClick = {
+                        watched = if (dom.url in watched) watched - dom.url else watched + dom.url
+                    }
+                )
             }
         }
     }

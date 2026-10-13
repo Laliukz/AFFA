@@ -12,6 +12,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 
@@ -49,7 +50,7 @@ class HomeRepository(
         when (section) {
             SeeAllSection.RECENT -> fetchRecentEpisodes(Int.MAX_VALUE)
             SeeAllSection.POPULAR -> fetchPopular(20)
-            SeeAllSection.ADDED -> fetchRecentlyAdded(Int.MAX_VALUE, 60000L)
+            SeeAllSection.ADDED -> loadAddedPage(0).items
         }
     }
 
@@ -80,17 +81,18 @@ class HomeRepository(
     // â”€â”€ Section 3: ReciÃ©n AÃ±adidos â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     // Seasonal ya estrenado (AniList) + tÃ­tulo exacto en scrapers + â‰¥1 episodio confirmado.
     // Home pide need=5 (rÃ¡pido); Ver Todo valida el resto con mÃ¡s margen.
-    private suspend fun fetchRecentlyAdded(need: Int = 5, timeoutMs: Long = 25000L): List<HomeAnimeItem> {
-        // ponytail: parcial, no todo-o-nada â€” al cortar el timeout se muestra lo validado
-        val valid = mutableListOf<HomeAnimeItem>()
+    private suspend fun fetchRecentlyAdded(need: Int = 5, timeoutMs: Long = 25000L): List<HomeAnimeItem> = supervisorScope {
+        // ponytail: validacion en paralelo; parcial al cortar el timeout
+        val seasonal = runCatching { metadataProvider.getSeasonal(40) }.getOrDefault(emptyList())
         withTimeoutOrNull(timeoutMs) {
-            val seasonal = metadataProvider.getSeasonal(40)
-            for (meta in seasonal) {
-                if (valid.size >= need) break
-                if (isConfirmed(meta)) valid += meta.toHomeAnimeItem()
-            }
-        }
-        return valid
+            seasonal.map { meta ->
+                async {
+                    withTimeoutOrNull(12000L) {
+                        if (isConfirmed(meta)) meta.toHomeAnimeItem() else null
+                    }
+                }
+            }.awaitAll().filterNotNull().take(need)
+        }.orEmpty()
     }
 
     // ponytail: un reintento con pausa â€” la red mÃ³vil falla mÃ¡s que el wifi de pruebas
@@ -214,6 +216,30 @@ class HomeRepository(
     private val availabilityCache = java.util.Collections.synchronizedMap(
         mutableMapOf<String, Pair<Boolean, Long>>()
     )
+
+    // Fuente paginable de Recien Anadidos: la lista estacional se pide una vez por sesion
+    private var seasonalAdded: List<AnimeMetadata>? = null
+
+    data class AddedPage(val items: List<HomeAnimeItem>, val hasMore: Boolean)
+
+    suspend fun loadAddedPage(page: Int, pageSize: Int = 20, timeoutMs: Long = 30000L): AddedPage = withContext(Dispatchers.IO) {
+        val all = seasonalAdded
+            ?: runCatching { metadataProvider.getSeasonal(60) }.getOrDefault(emptyList()).also { seasonalAdded = it }
+        val slice = all.drop(page * pageSize).take(pageSize)
+        if (slice.isEmpty()) return@withContext AddedPage(emptyList(), false)
+        val items = supervisorScope {
+            withTimeoutOrNull(timeoutMs) {
+                slice.map { meta ->
+                    async {
+                        withTimeoutOrNull(12000L) {
+                            if (isConfirmed(meta)) meta.toHomeAnimeItem() else null
+                        }
+                    }
+                }.awaitAll().filterNotNull()
+            }.orEmpty()
+        }
+        AddedPage(items, all.drop((page + 1) * pageSize).isNotEmpty())
+    }
 
     private suspend fun isConfirmed(meta: AnimeMetadata): Boolean {
         val key = normalizeTitle(meta.title).joinToString(" ")

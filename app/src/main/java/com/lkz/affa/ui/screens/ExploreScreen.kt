@@ -43,6 +43,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -98,6 +99,22 @@ fun AnimeSearchScreen(
         ?: androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
 
     LaunchedEffect(viewModel) { viewModel?.observe() }
+
+    // Scroll persistente: se restaura al volver de detalles; se reinicia al cambiar filtros
+    val gridState = rememberLazyGridState(
+        initialFirstVisibleItemIndex = viewModel?.gridIndex ?: 0,
+        initialFirstVisibleItemScrollOffset = viewModel?.gridOffset ?: 0
+    )
+    DisposableEffect(Unit) {
+        onDispose {
+            viewModel?.gridIndex = gridState.firstVisibleItemIndex
+            viewModel?.gridOffset = gridState.firstVisibleItemScrollOffset
+        }
+    }
+    var firstParams by remember { mutableStateOf(true) }
+    LaunchedEffect(query, genre, year, status, sort) {
+        if (firstParams) firstParams = false else gridState.scrollToItem(0)
+    }
 
     Scaffold(
         bottomBar = { BottomNavigationBar(currentScreen, onScreenSelected) },
@@ -167,7 +184,6 @@ fun AnimeSearchScreen(
                     )
                 }
                 else -> {
-                    val gridState = rememberLazyGridState()
                     LaunchedEffect(gridState, results.size, loadingMore, hasMore) {
                         androidx.compose.runtime.snapshotFlow {
                             val layoutInfo = gridState.layoutInfo
