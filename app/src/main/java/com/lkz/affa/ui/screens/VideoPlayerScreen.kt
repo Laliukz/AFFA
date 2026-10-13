@@ -200,9 +200,6 @@ fun NowPlayingScreen(
                     if (player != null) {
                         AndroidView(
                             factory = { ctx ->
-                                // ponytail: PlayerView con FIT por defecto (barras negras
-                                // según aspecto, jamás deforma ni recorta); useController=false
-                                // porque los controles son los Compose propios
                                 PlayerView(ctx).also {
                                     it.resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
                                     it.useController = false
@@ -221,12 +218,11 @@ fun NowPlayingScreen(
                             interactionSource = remember { MutableInteractionSource() }
                         ) { controlsVisible = !controlsVisible }
                     )
-                    // ponytail: saltos flotantes sobre el video (estilo YouTube) —
-                    // fuera de la barra para no apretarla
+                    // ponytail: saltos + play flotantes centrados sobre el video
                     if (controlsVisible) {
                         Row(
-                            modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
+                            modifier = Modifier.fillMaxSize(),
+                            horizontalArrangement = Arrangement.Center,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             IconButton(
@@ -241,6 +237,21 @@ fun NowPlayingScreen(
                                     tint = Color.White
                                 )
                             }
+                            Spacer(modifier = Modifier.width(32.dp))
+                            IconButton(
+                                onClick = { if (isPlaying) player?.pause() else player?.play() },
+                                modifier = Modifier
+                                    .background(Color.Black.copy(alpha = 0.4f), CircleShape)
+                                    .size(72.dp)
+                            ) {
+                                Icon(
+                                    imageVector = if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
+                                    contentDescription = if (isPlaying) "Pausar" else "Reproducir",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(40.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(32.dp))
                             IconButton(
                                 onClick = { viewModel?.skipForward(10000L) },
                                 modifier = Modifier
