@@ -191,7 +191,9 @@ class JkAnimeScraper(
             val epNumber = Regex("""Ep\s+(\d+\.?\d*)""").find(epText)
                 ?.groupValues?.get(1)?.toFloatOrNull() ?: continue
 
-            val img = card.selectFirst("img")?.attr("src") ?: ""
+            val img = card.selectFirst("img")?.attr("data-animepic")?.takeIf { it.isNotBlank() }
+                ?: card.selectFirst("img")?.attr("src")
+                ?: ""
             val timeBadge = card.selectFirst(".badge-secondary")
             val rawTimeLabel = timeBadge?.text()?.trim() ?: ""
 

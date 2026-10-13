@@ -1,6 +1,7 @@
 package com.lkz.affa.ui.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -29,7 +30,7 @@ import com.lkz.affa.ui.theme.PrimaryPurple
 import com.lkz.affa.ui.components.AssetImage
 
 @Composable
-fun TopBar() {
+fun TopBar(onSearchClick: () -> Unit = {}) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -58,7 +59,9 @@ fun TopBar() {
                 imageVector = Icons.Default.Search,
                 contentDescription = "Search",
                 tint = Color.White,
-                modifier = Modifier.size(24.dp)
+                modifier = Modifier
+                    .size(24.dp)
+                    .clickable(onClick = onSearchClick)
             )
             Spacer(modifier = Modifier.width(16.dp))
             AssetImage(

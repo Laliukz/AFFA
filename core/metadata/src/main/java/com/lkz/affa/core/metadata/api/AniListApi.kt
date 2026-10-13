@@ -18,7 +18,7 @@ interface AniListApi {
         private val JSON_MEDIA = "application/json; charset=utf-8".toMediaType()
 
         fun buildSearchBody(search: String): RequestBody {
-            val query = """query (${'$'}search: String!) { Page { media(search: ${'$'}search, type: ANIME) { id idMal title { romaji english native } description(asHtml: false) coverImage { large } bannerImage status episodes meanScore genres } } }"""
+            val query = """query (${'$'}search: String!) { Page { media(search: ${'$'}search, type: ANIME) { id idMal title { romaji english native } description(asHtml: false) coverImage { large } bannerImage status episodes meanScore genres synonyms startDate { year month day } nextAiringEpisode { episode airingAt } } } }"""
             val json = """{"query":"$query","variables":{"search":"$search"}}"""
             return json.toRequestBody(JSON_MEDIA)
         }
@@ -42,10 +42,46 @@ interface AniListApi {
             return json.toRequestBody(JSON_MEDIA)
         }
 
+        // ponytail: un solo endpoint para Sort/Genre/Year/Status — solo entran args no nulos
+        fun buildBrowseBody(
+            genre: String?,
+            year: Int?,
+            status: String?,
+            sort: String,
+            page: Int = 1,
+            perPage: Int = 20
+        ): RequestBody {
+            val args = mutableListOf("type: ANIME")
+            if (genre != null) args += "genre: \"$genre\""
+            if (year != null) args += "seasonYear: $year"
+            if (status != null) args += "status: $status"
+            args += "sort: $sort"
+            val query = """query (${'$'}page: Int, ${'$'}perPage: Int) { Page(page: ${'$'}page, perPage: ${'$'}perPage) { media(${args.joinToString(", ")}) { id idMal title { romaji english native } coverImage { large } bannerImage meanScore genres popularity } } }"""
+            val json = """{"query":"$query","variables":{"page":$page,"perPage":$perPage}}"""
+            return json.toRequestBody(JSON_MEDIA)
+        }
+
         fun currentSeason(month: Int): String {
             require(month in 1..12)
             return when (month) {
                 in 1..3 -> "WINTER"; in 4..6 -> "SPRING"; in 7..9 -> "SUMMER"; else -> "FALL"
+            }
+        }
+
+        // En el último mes de la temporada los estrenos ya son de la siguiente
+        // (ej. 29-sep = SUMMER pero las premieres son FALL). Solo ahí se pide doble.
+        fun isSeasonClosing(month: Int): Boolean {
+            require(month in 1..12)
+            return month == 3 || month == 6 || month == 9 || month == 12
+        }
+
+        fun nextSeason(season: String, year: Int): Pair<String, Int> {
+            require(season in setOf("WINTER", "SPRING", "SUMMER", "FALL"))
+            return when (season) {
+                "WINTER" -> "SPRING" to year
+                "SPRING" -> "SUMMER" to year
+                "SUMMER" -> "FALL" to year
+                else -> "WINTER" to year + 1
             }
         }
     }

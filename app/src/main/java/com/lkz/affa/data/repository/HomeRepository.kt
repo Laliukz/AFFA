@@ -1,10 +1,11 @@
-package com.lkz.affa.data.repository
+﻿package com.lkz.affa.data.repository
 
 import com.lkz.affa.core.metadata.MetadataProvider
 import com.lkz.affa.core.network.scraper.AnimeAv1Scraper
 import com.lkz.affa.core.network.scraper.JkAnimeScraper
 import com.lkz.affa.core.network.scraper.TioAnimeScraper
 import com.lkz.affa.domain.model.AnimeMetadata
+import com.lkz.affa.domain.model.AnimeSearchResult
 import com.lkz.affa.domain.model.HomeAnimeItem
 import com.lkz.affa.domain.model.RecentEpisode
 import kotlinx.coroutines.Dispatchers
@@ -22,7 +23,7 @@ class HomeRepository(
 ) {
     suspend fun getHomeData(): Result<HomeData> = withContext(Dispatchers.IO) {
         runCatching {
-            // Each section fetches independently — failure in one doesn't affect others
+            // Each section fetches independently â€” failure in one doesn't affect others
             val recentEpisodesDeferred = async { fetchRecentEpisodes() }
             val popularDeferred = async { fetchPopular() }
             val recentlyAddedDeferred = async { fetchRecentlyAdded() }
@@ -52,9 +53,9 @@ class HomeRepository(
         }
     }
 
-    // ── Section 1: Episodios Recientes ──────────────────────────────
+    // â”€â”€ Section 1: Episodios Recientes â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     // Solo Av1 + Jk (filtran "hoy" con fecha real). Sin respaldo de Tio:
-    // si ambas fallan la sección queda vacía — mejor que mostrar días viejos.
+    // si ambas fallan la secciÃ³n queda vacÃ­a â€” mejor que mostrar dÃ­as viejos.
     private suspend fun fetchRecentEpisodes(need: Int = 5): List<HomeAnimeItem> = coroutineScope {
         runCatching {
             val userZone = java.time.ZoneId.systemDefault()
@@ -68,7 +69,7 @@ class HomeRepository(
         }.getOrDefault(emptyList())
     }
 
-    // ── Section 2: Populares ────────────────────────────────────────
+    // â”€â”€ Section 2: Populares â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     // Source: AniList trending only (1 cheap request)
     private suspend fun fetchPopular(limit: Int = 5): List<HomeAnimeItem> = runCatching {
         metadataProvider.getTrending(limit)
@@ -76,24 +77,23 @@ class HomeRepository(
             .take(limit)
     }.getOrDefault(emptyList())
 
-    // ── Section 3: Recién Añadidos ──────────────────────────────────
-    // Seasonal ya estrenado (AniList) + título exacto en scrapers + ≥1 episodio confirmado.
-    // Home pide need=5 (rápido); Ver Todo valida el resto con más margen.
+    // â”€â”€ Section 3: ReciÃ©n AÃ±adidos â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // Seasonal ya estrenado (AniList) + tÃ­tulo exacto en scrapers + â‰¥1 episodio confirmado.
+    // Home pide need=5 (rÃ¡pido); Ver Todo valida el resto con mÃ¡s margen.
     private suspend fun fetchRecentlyAdded(need: Int = 5, timeoutMs: Long = 25000L): List<HomeAnimeItem> {
-        return runCatching {
-            withTimeoutOrNull(timeoutMs) {
-                val seasonal = metadataProvider.getSeasonal(40)
-                val valid = mutableListOf<HomeAnimeItem>()
-                for (meta in seasonal) {
-                    if (valid.size >= need) break
-                    if (isConfirmed(meta)) valid += meta.toHomeAnimeItem()
-                }
-                valid
+        // ponytail: parcial, no todo-o-nada â€” al cortar el timeout se muestra lo validado
+        val valid = mutableListOf<HomeAnimeItem>()
+        withTimeoutOrNull(timeoutMs) {
+            val seasonal = metadataProvider.getSeasonal(40)
+            for (meta in seasonal) {
+                if (valid.size >= need) break
+                if (isConfirmed(meta)) valid += meta.toHomeAnimeItem()
             }
-        }.getOrNull().orEmpty()
+        }
+        return valid
     }
 
-    // ponytail: un reintento con pausa — la red móvil falla más que el wifi de pruebas
+    // ponytail: un reintento con pausa â€” la red mÃ³vil falla mÃ¡s que el wifi de pruebas
     private suspend fun latestWithRetry(block: suspend () -> List<RecentEpisode>): List<RecentEpisode> {
         runCatching { return block() }
         kotlinx.coroutines.delay(1500L)
@@ -102,9 +102,9 @@ class HomeRepository(
         return second.getOrDefault(emptyList())
     }
 
-    // ── Details: lista de episodios ───────────────────────────────
-    // Av1 → Jk → Tio con match canónico; primer scraper con lista no vacía.
-    // ponytail: memoria de sesión — volver atrás o desde segundo plano no re-pide
+    // â”€â”€ Details: lista de episodios â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // Av1 â†’ Jk â†’ Tio con match canÃ³nico; primer scraper con lista no vacÃ­a.
+    // ponytail: memoria de sesiÃ³n â€” volver atrÃ¡s o desde segundo plano no re-pide
     private val detailsCache = java.util.Collections.synchronizedMap(
         mutableMapOf<String, com.lkz.affa.domain.model.AnimeDetails>()
     )
@@ -112,30 +112,34 @@ class HomeRepository(
     suspend fun getAnimeDetails(
         title: String,
         synonyms: List<String>,
-        timeoutMs: Long = 30000L
+        timeoutMs: Long = 30000L,
+        episodeUrl: String? = null
     ): com.lkz.affa.domain.model.AnimeDetails? = withContext(Dispatchers.IO) {
         val key = normalizeTitle(title).joinToString(" ")
         detailsCache[key]?.let { return@withContext it }
         runCatching {
             withTimeoutOrNull(timeoutMs) {
                 val aliases = (listOf(title) + synonyms).toSet()
-                val av1Hit = runCatching {
-                    animeAv1Scraper.search(title).firstOrNull { titleMatches(it.title, aliases) }
-                }.getOrNull()
+                val queries = (listOf(title) + synonyms).filter { it.isNotBlank() }
+                // ponytail: slug conocido del feed â€” directo, sin buscar ni matchear tÃ­tulos
+                directSlug(episodeUrl)?.let { (src, slug) ->
+                    val d = runCatching {
+                        if (src == "av1") animeAv1Scraper.getAnimeDetails(slug)
+                        else jkAnimeScraper.getAnimeDetails(slug)
+                    }.getOrNull()
+                    if (d != null && d.episodes.isNotEmpty()) return@withTimeoutOrNull d
+                }
+                val av1Hit = searchHit(animeAv1Scraper::search, queries, aliases)
                 if (av1Hit != null) {
                     val d = runCatching { animeAv1Scraper.getAnimeDetails(av1Hit.slug) }.getOrNull()
                     if (d != null && d.episodes.isNotEmpty()) return@withTimeoutOrNull d
                 }
-                val jkHit = runCatching {
-                    jkAnimeScraper.search(title).firstOrNull { titleMatches(it.title, aliases) }
-                }.getOrNull()
+                val jkHit = searchHit(jkAnimeScraper::search, queries, aliases)
                 if (jkHit != null) {
                     val d = runCatching { jkAnimeScraper.getAnimeDetails(jkHit.slug) }.getOrDefault(null)
                     if (d != null && d.episodes.isNotEmpty()) return@withTimeoutOrNull d
                 }
-                val tioHit = runCatching {
-                    tioAnimeScraper.search(title).firstOrNull { titleMatches(it.title, aliases) }
-                }.getOrNull()
+                val tioHit = searchHit(tioAnimeScraper::search, queries, aliases)
                 if (tioHit != null) {
                     runCatching { tioAnimeScraper.getAnimeDetails(tioHit.slug) }.getOrNull()
                         ?.takeIf { it.episodes.isNotEmpty() }
@@ -151,46 +155,57 @@ class HomeRepository(
     ): List<com.lkz.affa.domain.model.Episode> =
         getAnimeDetails(title, synonyms, timeoutMs)?.episodes.orEmpty()
 
-    // Servidores agregados Tio → Jk → Av1 (mp4 primero por compatibilidad).
+    // Servidores agregados Tio â†’ Jk â†’ Av1 (mp4 primero por compatibilidad).
     // En paralelo; lo que no responda en el tope queda fuera sin romper.
     suspend fun getEpisodeServers(
         title: String,
         synonyms: List<String>,
         episodeNumber: Float,
-        timeoutMs: Long = 20000L
+        timeoutMs: Long = 20000L,
+        episodeUrl: String? = null
     ): List<com.lkz.affa.domain.model.VideoServer> = withContext(Dispatchers.IO) {
         runCatching {
             withTimeoutOrNull(timeoutMs) {
                 val aliases = (listOf(title) + synonyms).toSet()
+                val queries = (listOf(title) + synonyms).filter { it.isNotBlank() }
+                suspend fun fromDirect() = runCatching {
+                    val (src, slug) = directSlug(episodeUrl) ?: return@runCatching emptyList()
+                    val clean = if (episodeNumber % 1 == 0f) episodeNumber.toInt().toString() else episodeNumber.toString()
+                    val servers = if (src == "av1") animeAv1Scraper.getVideoServers("https://animeav1.com/media/$slug/$clean")
+                    else jkAnimeScraper.getVideoServers("https://jkanime.net/$slug/$clean/")
+                    servers.map { it.copy(name = "${it.name} Â· ${if (src == "av1") "Av1" else "Jk"}") }
+                }.getOrDefault(emptyList())
                 suspend fun fromTio() = runCatching {
-                    val hit = tioAnimeScraper.search(title).firstOrNull { titleMatches(it.title, aliases) }
+                    val hit = searchHit(tioAnimeScraper::search, queries, aliases)
                         ?: return@runCatching emptyList()
                     val ep = tioAnimeScraper.getAnimeDetails(hit.slug).episodes
                         .firstOrNull { it.number == episodeNumber } ?: return@runCatching emptyList()
                     tioAnimeScraper.getVideoServers(ep.url)
-                        .map { it.copy(name = "${it.name} · Tio") }
+                        .map { it.copy(name = "${it.name} Â· Tio") }
                 }.getOrDefault(emptyList())
                 suspend fun fromJk() = runCatching {
-                    val hit = jkAnimeScraper.search(title).firstOrNull { titleMatches(it.title, aliases) }
+                    val hit = searchHit(jkAnimeScraper::search, queries, aliases)
                         ?: return@runCatching emptyList()
                     val ep = jkAnimeScraper.getAnimeDetails(hit.slug).episodes
                         .firstOrNull { it.number == episodeNumber } ?: return@runCatching emptyList()
                     jkAnimeScraper.getVideoServers(ep.url)
-                        .map { it.copy(name = "${it.name} · Jk") }
+                        .map { it.copy(name = "${it.name} Â· Jk") }
                 }.getOrDefault(emptyList())
                 suspend fun fromAv1() = runCatching {
-                    val hit = animeAv1Scraper.search(title).firstOrNull { titleMatches(it.title, aliases) }
+                    val hit = searchHit(animeAv1Scraper::search, queries, aliases)
                         ?: return@runCatching emptyList()
                     val ep = animeAv1Scraper.getAnimeDetails(hit.slug).episodes
                         .firstOrNull { it.number == episodeNumber } ?: return@runCatching emptyList()
                     animeAv1Scraper.getVideoServers(ep.url)
-                        .map { it.copy(name = "${it.name} · Av1") }
+                        .map { it.copy(name = "${it.name} Â· Av1") }
                 }.getOrDefault(emptyList())
                 coroutineScope {
+                    val direct = async { fromDirect() }
                     val tio = async { fromTio() }
                     val jk = async { fromJk() }
                     val av1 = async { fromAv1() }
-                    tio.await() + jk.await() + av1.await()
+                    (direct.await() + tio.await() + jk.await() + av1.await())
+                        .distinctBy { it.embedUrl }
                 }
             }.orEmpty()
         }.getOrDefault(emptyList())
@@ -210,18 +225,94 @@ class HomeRepository(
 
     private suspend fun confirmInScrapers(meta: AnimeMetadata): Boolean {
         val aliases = (listOf(meta.title) + meta.synonyms).toSet()
-        // Jk cubre todo su catálogo en 1 search: match exacto alcanza.
+        val queries = (listOf(meta.title) + meta.synonyms).filter { it.isNotBlank() }
+        // Jk cubre todo su catÃ¡logo en 1 search: match exacto alcanza.
         // ponytail: sin details en Jk (su ajax de episodios pagina hasta 50 veces)
-        if (runCatching { jkAnimeScraper.search(meta.title).any { titleMatches(it.title, aliases) } }.getOrDefault(false)) return true
+        if (searchHit(jkAnimeScraper::search, queries, aliases) != null) return true
         // Av1/Tio: match exacto + details confirma episodios (1 req c/u).
-        val av1Hit = runCatching { animeAv1Scraper.search(meta.title).firstOrNull { titleMatches(it.title, aliases) } }.getOrNull()
+        val av1Hit = searchHit(animeAv1Scraper::search, queries, aliases)
         if (av1Hit != null && runCatching { animeAv1Scraper.getAnimeDetails(av1Hit.slug).episodes.isNotEmpty() }.getOrDefault(false)) return true
-        val tioHit = runCatching { tioAnimeScraper.search(meta.title).firstOrNull { titleMatches(it.title, aliases) } }.getOrNull()
+        val tioHit = searchHit(tioAnimeScraper::search, queries, aliases)
         if (tioHit != null && runCatching { tioAnimeScraper.getAnimeDetails(tioHit.slug).episodes.isNotEmpty() }.getOrDefault(false)) return true
         return false
     }
 
-    // ── Helpers ─────────────────────────────────────────────────────
+    // ponytail: buscar agrega fuentes sin matchear â€” el match exacto vive en detalles
+    suspend fun searchExplore(query: String): List<HomeAnimeItem> = withContext(Dispatchers.IO) {
+        if (query.isBlank()) return@withContext emptyList()
+        runCatching {
+            withTimeoutOrNull(15000L) {
+                coroutineScope {
+                    val av1 = async { runCatching { animeAv1Scraper.search(query) }.getOrDefault(emptyList()) }
+                    val jk = async { runCatching { jkAnimeScraper.search(query) }.getOrDefault(emptyList()) }
+                    val tio = async { runCatching { tioAnimeScraper.search(query) }.getOrDefault(emptyList()) }
+                    (av1.await() + jk.await() + tio.await())
+                        .filter { it.title.isNotBlank() }
+                        .distinctBy { normalizeTitle(it.title).joinToString(" ") }
+                        .take(20)
+                        .map {
+                            HomeAnimeItem(
+                                title = it.title,
+                                slug = it.slug,
+                                imageUrl = it.imageUrl,
+                                synonyms = listOf(it.title),
+                                episodeUrl = it.url.takeIf { u -> u.isNotBlank() }
+                            )
+                        }
+                }
+            }.orEmpty()
+        }.getOrDefault(emptyList())
+    }
+
+    suspend fun getTrendingItems(limit: Int = 15): List<HomeAnimeItem> = withContext(Dispatchers.IO) {
+        runCatching {
+            withTimeoutOrNull(15000L) {
+                metadataProvider.getTrending(limit).map { it.toHomeAnimeItem() }
+            }.orEmpty()
+        }.getOrDefault(emptyList())
+    }
+
+    suspend fun getBrowseItems(
+        genre: String?,
+        year: Int?,
+        status: String?,
+        sort: String,
+        page: Int = 1,
+        limit: Int = 20
+    ): List<HomeAnimeItem> = withContext(Dispatchers.IO) {
+        runCatching {
+            withTimeoutOrNull(30000L) {
+                metadataProvider.browse(genre, year, status, sort, page, limit).map { it.toHomeAnimeItem() }
+            }.orEmpty()
+        }.onFailure {
+            android.util.Log.w("ExploreBrowse", "browse fallo: ${it.message}")
+        }.getOrDefault(emptyList())
+    }
+
+    // â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
+    // ponytail: las pÃ¡ginas acortan tÃ­tulos largos â€” se pregunta con cada variante
+    // (tÃ­tulo + sinÃ³nimos); el match sigue siendo exacto, solo hay mÃ¡s intentos
+    private fun searchHit(
+        search: (String) -> List<AnimeSearchResult>,
+        queries: List<String>,
+        aliases: Set<String>
+    ): AnimeSearchResult? {
+        for (q in queries.distinct().take(4)) {
+            if (q.isBlank()) continue
+            val hit = runCatching { search(q).firstOrNull { titleMatches(it.title, aliases) } }.getOrNull()
+            if (hit != null) return hit
+        }
+        return null
+    }
+
+    // ponytail: el feed de recientes ya trae el slug â€” directo sin buscar ni matchear
+    private fun directSlug(episodeUrl: String?): Pair<String, String>? {
+        if (episodeUrl.isNullOrBlank()) return null
+        Regex("""animeav1\.com/media/([^/?#]+)""").find(episodeUrl)?.let { return "av1" to it.groupValues[1] }
+        Regex("""jkanime\.net/([^/?#]+)""").find(episodeUrl)?.let { return "jk" to it.groupValues[1] }
+        return null
+    }
 
     private fun AnimeMetadata.toHomeAnimeItem(): HomeAnimeItem {
         val calculatedSlug = title.lowercase()
@@ -279,9 +370,9 @@ data class HomeData(
 
 enum class SeeAllSection { RECENT, POPULAR, ADDED }
 
-// Match de títulos por tokens canónicos (internal para test local).
-// Igualdad difusa fue el bug ("Golden" ⊂ "Golden Kamuy"); igualdad exacta
-// también falla ("III" vs "3rd", orden distinto). Multiset canónico: ni más ni menos.
+// Match de tÃ­tulos por tokens canÃ³nicos (internal para test local).
+// Igualdad difusa fue el bug ("Golden" âŠ‚ "Golden Kamuy"); igualdad exacta
+// tambiÃ©n falla ("III" vs "3rd", orden distinto). Multiset canÃ³nico: ni mÃ¡s ni menos.
 private val DROP_TOKENS = setOf("season", "part", "cour", "cours")
 private val ROMAN = mapOf(
     "i" to "1", "ii" to "2", "iii" to "3", "iv" to "4", "v" to "5",

@@ -40,7 +40,7 @@ class DetailsViewModel(
         }
         _uiState.value = DetailsUiState.Loading
         viewModelScope.launch {
-            val details = repository.getAnimeDetails(item.title, item.synonyms)
+            val details = repository.getAnimeDetails(item.title, item.synonyms, episodeUrl = item.episodeUrl)
             _uiState.value = DetailsUiState.Success(item, details, details?.episodes.orEmpty())
         }
     }

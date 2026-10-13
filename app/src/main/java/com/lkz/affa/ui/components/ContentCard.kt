@@ -1,6 +1,7 @@
 package com.lkz.affa.ui.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -16,11 +17,17 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.lkz.affa.ui.screens.AnimeResult
 import com.lkz.affa.ui.theme.RatingYellow
 import com.lkz.affa.ui.theme.TextGray
+import com.lkz.affa.ui.theme.PrimaryPurple
 
-import androidx.compose.foundation.clickable
+data class AnimeResult(
+    val title: String,
+    val info: String,
+    val rating: String,
+    val tag: String? = null,
+    val tagColor: Color = PrimaryPurple
+)
 
 @Composable
 fun ContentCard(

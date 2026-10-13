@@ -63,7 +63,8 @@ class MetadataProviderChain(
                 episodes = it.episodes,
                 score = it.score,
                 genres = it.genres?.map { g -> g.name } ?: emptyList(),
-                source = MetadataSource.JIKAN
+                source = MetadataSource.JIKAN,
+                synonyms = listOfNotNull(it.titleJapanese)
             )
         }?.takeIf { !isHentai(it) }
     } catch (e: Exception) {
@@ -135,24 +136,50 @@ class MetadataProviderChain(
         emptyList()
     }
 
-    override suspend fun getSeasonal(limit: Int): List<AnimeMetadata> = try {
-        val now = java.util.Calendar.getInstance()
-        val season = AniListApi.currentSeason(now.get(java.util.Calendar.MONTH) + 1)
+    override suspend fun getSeasonal(limit: Int): List<AnimeMetadata> = try {        val now = java.util.Calendar.getInstance()
+        val month = now.get(java.util.Calendar.MONTH) + 1
+        val season = AniListApi.currentSeason(month)
         val year = now.get(java.util.Calendar.YEAR)
-        val out = mutableListOf<AnimeMetadata>()
-        var page = 1
-        while (out.size < limit && page <= 4) {
-            val body = AniListApi.buildSeasonalBody(season, year, page, 50)
-            val res = anilistApi.searchAnime(body)
-            out += res.data.page.media
-                .mapNotNull { it.toMetadata().takeIf { m -> !isHentai(m) } }
-                .filter { isAired(it.nextAiringEpisode) }
-            if (res.data.page.pageInfo?.hasNextPage != true) break
-            page++
+        // En cierre, la siguiente primero: las premieres nuevas mandan sobre
+        // los finales de la anterior. 1 página por temporada (barato).
+        val seasons = if (AniListApi.isSeasonClosing(month)) {
+            listOf(AniListApi.nextSeason(season, year), season to year)
+        } else {
+            listOf(season to year)
         }
-        out.take(limit)
+        val out = mutableListOf<AnimeMetadata>()
+        for ((s, y) in seasons) {
+            var page = 1
+            val maxPages = if (seasons.size > 1) 1 else 4
+            while (out.size < limit && page <= maxPages) {
+                val body = AniListApi.buildSeasonalBody(s, y, page, 50)
+                val res = anilistApi.searchAnime(body)
+                out += res.data.page.media
+                    .mapNotNull { it.toMetadata().takeIf { m -> !isHentai(m) } }
+                    .filter { isAired(it.nextAiringEpisode) }
+                if (res.data.page.pageInfo?.hasNextPage != true) break
+                page++
+            }
+        }
+        out.distinctBy { it.anilistId ?: it.title }.take(limit)
     } catch (e: CancellationException) {
         throw e
+    } catch (e: Exception) {
+        e.printStackTrace()
+        emptyList()
+    }
+
+    override suspend fun browse(
+        genre: String?,
+        year: Int?,
+        status: String?,
+        sort: String,
+        page: Int,
+        limit: Int
+    ): List<AnimeMetadata> = try {
+        val body = AniListApi.buildBrowseBody(genre, year, status, sort, page, limit)
+        val response = anilistApi.searchAnime(body)
+        response.data.page.media.mapNotNull { it.toMetadata().takeIf { m -> !isHentai(m) } }
     } catch (e: Exception) {
         e.printStackTrace()
         emptyList()
