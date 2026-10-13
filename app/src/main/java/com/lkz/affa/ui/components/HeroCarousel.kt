@@ -10,6 +10,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -40,6 +41,7 @@ import com.lkz.affa.ui.theme.HeroTitle
 @Composable
 fun HeroCarousel(
     items: List<HomeAnimeItem>,
+    isInList: (String) -> Boolean = { false },
     onAnimeClick: (HomeAnimeItem) -> Unit = {},
     onAddClick: (HomeAnimeItem) -> Unit = {}
 ) {
@@ -166,22 +168,23 @@ fun HeroCarousel(
                             )
                         }
                         Spacer(modifier = Modifier.width(12.dp))
+                        val isSaved = isInList(item.title)
                         Button(
                             onClick = { onAddClick(item) },
                             shape = CircleShape,
                             border = androidx.compose.foundation.BorderStroke(
                                 1.5.dp,
-                                AppTextPrimary.copy(alpha = 0.5f)
+                                if (isSaved) AppPrimary else AppTextPrimary.copy(alpha = 0.5f)
                             ),
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = DarkBackground.copy(alpha = 0.55f)
+                                containerColor = if (isSaved) AppPrimary.copy(alpha = 0.2f) else DarkBackground.copy(alpha = 0.55f)
                             ),
                             contentPadding = PaddingValues(12.dp)
                         ) {
                             Icon(
-                                imageVector = Icons.Filled.Add,
-                                contentDescription = "Agregar a Mi Lista",
-                                tint = AppTextPrimary
+                                imageVector = if (isSaved) Icons.Filled.Check else Icons.Filled.Add,
+                                contentDescription = if (isSaved) "En Mi Lista" else "Agregar a Mi Lista",
+                                tint = if (isSaved) AppPrimary else AppTextPrimary
                             )
                         }
                     }

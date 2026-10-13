@@ -24,7 +24,10 @@ class Mp4UploadExtractor {
         val match = Regex("""player\.src\(\s*\{\s*type:\s*["'][^"']+["'],\s*src:\s*["']([^"']+\.mp4[^"']*)["']""").find(html)
             ?: Regex("""src:\s*["'](https?://[^"']+\.mp4[^"']*)["']""").find(html)
 
-        val videoUrl = match?.groupValues?.get(1)?.trim()?.replace("&amp;", "&") ?: return null
+        var videoUrl = match?.groupValues?.get(1)?.trim()?.replace("&amp;", "&") ?: return null
+        if (videoUrl.startsWith("//")) videoUrl = "https:$videoUrl"
+        // ponytail: solo URLs absolutas — el resto no es reproducible
+        if (!videoUrl.startsWith("http")) return null
 
         return VideoStream(
             server = "Mp4Upload",

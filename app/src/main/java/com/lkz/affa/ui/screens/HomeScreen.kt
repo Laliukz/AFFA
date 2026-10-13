@@ -49,26 +49,55 @@ import com.lkz.affa.data.repository.HomeRepository
 import com.lkz.affa.data.repository.SeeAllSection
 import com.lkz.affa.domain.model.HomeAnimeItem
 
+// ponytail: scrapers devuelven géneros en ES, metadata en EN — mapa mínimo para cruzarlos
+private val GENRE_ES_EN = mapOf(
+    "accion" to "action", "aventura" to "adventure", "comedia" to "comedy",
+    "fantasia" to "fantasy", "terror" to "horror", "misterio" to "mystery",
+    "ciencia ficcion" to "sci-fi", "recuentos de la vida" to "slice of life",
+    "deportes" to "sports", "sobrenatural" to "supernatural", "suspenso" to "suspense",
+    "psicologico" to "psychological", "musica" to "music", "escolares" to "school",
+    "artes marciales" to "martial arts", "demencia" to "dementia"
+)
+
+private fun normGenre(s: String): String {
+    val plain = java.text.Normalizer.normalize(s, java.text.Normalizer.Form.NFD)
+        .replace(Regex("\\p{Mn}+"), "")
+    val lower = plain.lowercase().trim()
+    return GENRE_ES_EN[lower] ?: lower
+}
+
 @OptIn(androidx.media3.common.util.UnstableApi::class)
 @Composable
 fun AnimeHomeScreen(
     viewModel: HomeViewModel? = null,
     detailsViewModel: DetailsViewModel? = null,
-    playerViewModel: PlayerViewModel? = null
+    playerViewModel: PlayerViewModel? = null,
+    exploreViewModel: ExploreViewModel? = null,
+    myListViewModel: MyListViewModel? = null
 ) {
     var currentScreen by remember { mutableStateOf("home") }
     var selected by remember { mutableStateOf<HomeAnimeItem?>(null) }
     var playEp by remember { mutableStateOf<com.lkz.affa.domain.model.Episode?>(null) }
     var seeAll by remember { mutableStateOf<Pair<String, SeeAllSection>?>(null) }
+    // ponytail: volver a la pantalla de origen (home o explorar)
+    var detailsReturn by remember { mutableStateOf("home") }
     val uiState by viewModel?.uiState?.collectAsStateWithLifecycle()
         ?: remember { mutableStateOf(HomeUiState.Loading) }
+    val savedItems by myListViewModel?.items?.collectAsStateWithLifecycle()
+        ?: remember { mutableStateOf(emptyList()) }
 
     when (currentScreen) {
         "details" -> {
+            val isSaved = remember(savedItems, selected?.title) {
+                val t = selected?.title?.lowercase()?.trim() ?: ""
+                savedItems.any { it.title.lowercase().trim() == t }
+            }
             AnimeDetailScreen(
                 item = selected,
                 viewModel = detailsViewModel,
-                onBackClick = { currentScreen = "home" },
+                isSavedInMyList = isSaved,
+                onToggleMyList = { item -> myListViewModel?.toggle(item) },
+                onBackClick = { currentScreen = detailsReturn },
                 onEpisodeClick = { ep ->
                     playEp = ep
                     currentScreen = "player"
@@ -78,6 +107,24 @@ fun AnimeHomeScreen(
         "player" -> {
             val details =
                 detailsViewModel?.uiState?.collectAsStateWithLifecycle()?.value as? DetailsUiState.Success
+            val homeData =
+                (viewModel?.uiState?.collectAsStateWithLifecycle()?.value as? HomeUiState.Success)?.data
+            val selGenres = remember(details) {
+                (details?.details?.genres ?: details?.item?.genres.orEmpty()).map(::normGenre).toSet()
+            }
+            val pool = remember(homeData) {
+                if (homeData == null) emptyList()
+                else (homeData.heroItems + homeData.popularItems + homeData.recentlyAddedItems + homeData.recentEpisodes)
+                    .filter { it.title != selected?.title }
+                    .distinctBy { it.title.lowercase().trim() }
+            }
+            val genreMatch = remember(pool, selGenres) {
+                if (selGenres.isEmpty()) emptyList()
+                else pool.filter { it.genres.any { g -> normGenre(g) in selGenres } }.take(10)
+            }
+            // ponytail: sin cruce de géneros (ES vs EN) se muestran populares, no hueco vacío
+            val similars = genreMatch.ifEmpty { pool.take(10) }
+            val similarTitle = if (genreMatch.isNotEmpty()) "Similares" else "También te puede interesar"
             NowPlayingScreen(
                 animeTitle = selected?.title ?: "",
                 animeImageUrl = selected?.imageUrl ?: "",
@@ -85,19 +132,42 @@ fun AnimeHomeScreen(
                 episode = playEp,
                 episodes = details?.episodes.orEmpty(),
                 viewModel = playerViewModel,
-                onBackClick = { currentScreen = "details" }
+                details = details?.details,
+                animeScore = details?.item?.score,
+                similarItems = similars,
+                similarTitle = similarTitle,
+                episodeUrl = selected?.episodeUrl,
+                onBackClick = { currentScreen = "details" },
+                onSimilarClick = {
+                    selected = it
+                    detailsReturn = "home"
+                    currentScreen = "details"
+                }
             )
         }
         "explore" -> {
             AnimeSearchScreen(
+                viewModel = exploreViewModel,
                 currentScreen = currentScreen,
-                onScreenSelected = { currentScreen = it }
+                onScreenSelected = { currentScreen = it },
+                onAnimeClick = {
+                    selected = it
+                    detailsReturn = "explore"
+                    currentScreen = "details"
+                },
+                onBackClick = { currentScreen = "home" }
             )
         }
         "mylist" -> {
             MyListScreen(
                 currentScreen = currentScreen,
-                onScreenSelected = { currentScreen = it }
+                viewModel = myListViewModel,
+                onScreenSelected = { currentScreen = it },
+                onAnimeClick = {
+                    selected = it
+                    detailsReturn = "mylist"
+                    currentScreen = "details"
+                }
             )
         }
         else -> {
@@ -151,6 +221,7 @@ fun AnimeHomeScreen(
                                 onBackClick = { seeAll = null },
                                 onAnimeClick = { item ->
                                     selected = item
+                                    detailsReturn = "home"
                                     currentScreen = "details"
                                 }
                             )
@@ -164,9 +235,16 @@ fun AnimeHomeScreen(
                                 onRefresh = { viewModel?.loadHome() },
                                 onAnimeClick = { item ->
                                     selected = item
+                                    detailsReturn = "home"
                                     currentScreen = "details"
                                 },
-                                onSeeAll = { title, section -> seeAll = title to section }
+                                onSeeAll = { title, section -> seeAll = title to section },
+                                onSearchClick = { currentScreen = "explore" },
+                                isInList = { title ->
+                                    val t = title.lowercase().trim()
+                                    savedItems.any { it.title.lowercase().trim() == t }
+                                },
+                                onAddClick = { item -> myListViewModel?.toggle(item) }
                             )
                         }
                     }
@@ -183,7 +261,10 @@ private fun HomeContent(
     isRefreshing: Boolean,
     onRefresh: () -> Unit,
     onAnimeClick: (HomeAnimeItem?) -> Unit,
-    onSeeAll: (String, SeeAllSection) -> Unit
+    onSeeAll: (String, SeeAllSection) -> Unit,
+    onSearchClick: () -> Unit = {},
+    isInList: (String) -> Boolean = { false },
+    onAddClick: (HomeAnimeItem) -> Unit = {}
 ) {
     PullToRefreshBox(
         isRefreshing = isRefreshing,
@@ -197,8 +278,13 @@ private fun HomeContent(
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
         ) {
-        TopBar()
-        HeroCarousel(items = data.heroItems, onAnimeClick = { item -> onAnimeClick(item) })
+        TopBar(onSearchClick = onSearchClick)
+        HeroCarousel(
+            items = data.heroItems,
+            isInList = isInList,
+            onAnimeClick = { item -> onAnimeClick(item) },
+            onAddClick = onAddClick
+        )
         ContinueWatchingSection(onAnimeClick = { onAnimeClick(null) })
         TodayEpisodes(
             items = data.recentEpisodes,

@@ -202,7 +202,6 @@ class AnimeAv1Scraper(
             val title = extractMediaTitle(obj)
             val epNum = extractField(obj, "number:")?.toFloatOrNull()
             val slug = extractMediaSlug(obj)
-            val coverId = extractField(obj, "coverId:")
             val publishedAtStr = extractField(obj, "publishedAt:\"")
 
             if (title != null && epNum != null && slug != null && publishedAtStr != null) {
@@ -221,7 +220,9 @@ class AnimeAv1Scraper(
 
                 val timeCategory = TimeHelper.classifyByInstant(publishedAt, zone)
                 if (timeCategory == EpisodeTimeCategory.TODAY) {
-                    val imageUrl = if (coverId != null) "https://cdn.animeav1.com/covers/$coverId.jpg" else ""
+                    // ponytail: Av1 quitó coverId del feed — el thumb sale del CDN con el media id
+                    val mediaId = extractMediaId(obj)
+                    val imageUrl = mediaId?.let { "https://cdn.animeav1.com/covers/$it.jpg" } ?: ""
                     episodes.add(
                         RecentEpisode(
                             animeTitle = title,
@@ -230,7 +231,8 @@ class AnimeAv1Scraper(
                             imageUrl = imageUrl,
                             source = "AnimeAv1",
                             publishedAt = publishedAt,
-                            timeLabel = null
+                            timeLabel = null,
+                            mediaId = mediaId
                         )
                     )
                 }
@@ -297,5 +299,16 @@ class AnimeAv1Scraper(
         if (mediaObjEnd < 0) return null
         val mediaObj = obj.substring(mediaObjStart, mediaObjEnd + 1)
         return extractField(mediaObj, "slug:\"")
+    }
+
+    // ponytail: id del anime dentro de media:{} (difiere del id del episodio)
+    private fun extractMediaId(obj: String): String? {
+        val mediaStart = obj.indexOf("media:{")
+        if (mediaStart < 0) return null
+        val mediaObjStart = mediaStart + 6
+        val mediaObjEnd = findMatchingBrace(obj, mediaObjStart)
+        if (mediaObjEnd < 0) return null
+        val mediaObj = obj.substring(mediaObjStart, mediaObjEnd + 1)
+        return extractField(mediaObj, "id:")
     }
 }

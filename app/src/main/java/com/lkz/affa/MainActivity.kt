@@ -22,6 +22,7 @@ import com.lkz.affa.core.network.scraper.TioAnimeScraper
 import com.lkz.affa.data.repository.HomeRepository
 import com.lkz.affa.ui.screens.AnimeHomeScreen
 import com.lkz.affa.ui.screens.DetailsViewModel
+import com.lkz.affa.ui.screens.ExploreViewModel
 import com.lkz.affa.ui.screens.HomeViewModel
 import com.lkz.affa.ui.screens.PlayerViewModel
 
@@ -59,6 +60,28 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    val exploreViewModel: ExploreViewModel by viewModels {
+        object : ViewModelProvider.Factory {
+            @Suppress("UNCHECKED_CAST")
+            override fun <T : ViewModel> create(modelClass: Class<T>): T {
+                return ExploreViewModel(repository) as T
+            }
+        }
+    }
+
+    private val myListRepository by lazy {
+        com.lkz.affa.data.repository.MyListRepository(applicationContext)
+    }
+
+    val myListViewModel: com.lkz.affa.ui.screens.MyListViewModel by viewModels {
+        object : ViewModelProvider.Factory {
+            @Suppress("UNCHECKED_CAST")
+            override fun <T : ViewModel> create(modelClass: Class<T>): T {
+                return com.lkz.affa.ui.screens.MyListViewModel(myListRepository) as T
+            }
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         MetadataModule.init(applicationContext)
@@ -67,7 +90,9 @@ class MainActivity : ComponentActivity() {
             AnimeHomeScreen(
                 viewModel = homeViewModel,
                 detailsViewModel = detailsViewModel,
-                playerViewModel = playerViewModel
+                playerViewModel = playerViewModel,
+                exploreViewModel = exploreViewModel,
+                myListViewModel = myListViewModel
             )
         }
     }

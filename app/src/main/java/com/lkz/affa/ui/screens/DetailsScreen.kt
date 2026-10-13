@@ -21,6 +21,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -66,6 +67,8 @@ data class Episode(
 fun AnimeDetailScreen(
     item: HomeAnimeItem?,
     viewModel: DetailsViewModel? = null,
+    isSavedInMyList: Boolean = false,
+    onToggleMyList: (HomeAnimeItem) -> Unit = {},
     onBackClick: () -> Unit = {},
     onEpisodeClick: (com.lkz.affa.domain.model.Episode) -> Unit = {}
 ) {
@@ -95,11 +98,17 @@ fun AnimeDetailScreen(
 
             is DetailsUiState.Success -> {
                 val pairs = state.episodes.map { dom -> dom to dom.toUiEpisode() }
+                // Respaldo de imagen: metadata → póster del scraper (algunos items llegan sin cover)
+                val poster = item?.imageUrl?.takeIf { it.isNotBlank() }
+                    ?: state.details?.imageUrl.orEmpty()
                 DetailsContent(
                     paddingValues = paddingValues,
                     item = state.item,
+                    posterUrl = poster,
                     synopsisEs = state.details?.synopsis?.takeIf { it.isNotBlank() },
                     pairs = pairs,
+                    isSavedInMyList = isSavedInMyList,
+                    onToggleMyList = onToggleMyList,
                     onBackClick = onBackClick,
                     onEpisodeClick = onEpisodeClick
                 )
@@ -112,8 +121,11 @@ fun AnimeDetailScreen(
 private fun DetailsContent(
     paddingValues: PaddingValues,
     item: HomeAnimeItem,
+    posterUrl: String,
     synopsisEs: String?,
     pairs: List<Pair<com.lkz.affa.domain.model.Episode, Episode>>,
+    isSavedInMyList: Boolean = false,
+    onToggleMyList: (HomeAnimeItem) -> Unit = {},
     onBackClick: () -> Unit,
     onEpisodeClick: (com.lkz.affa.domain.model.Episode) -> Unit
 ) {
@@ -124,7 +136,7 @@ private fun DetailsContent(
         item {
             Box(modifier = Modifier.fillMaxWidth().height(240.dp)) {
                 AsyncImage(
-                    model = item.bannerUrl ?: item.imageUrl,
+                    model = item.bannerUrl ?: posterUrl,
                     contentDescription = null,
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.fillMaxSize()
@@ -164,7 +176,7 @@ private fun DetailsContent(
                     verticalAlignment = Alignment.Bottom
                 ) {
                     AsyncImage(
-                        model = item.imageUrl,
+                        model = posterUrl,
                         contentDescription = item.title,
                         contentScale = ContentScale.Crop,
                         modifier = Modifier
@@ -271,25 +283,25 @@ private fun DetailsContent(
                 }
                     Spacer(modifier = Modifier.width(12.dp))
                     Button(
-                        onClick = {},
+                        onClick = { onToggleMyList(item) },
                         shape = CircleShape,
-                    border = androidx.compose.foundation.BorderStroke(
-                        1.5.dp,
-                        AppTextPrimary.copy(alpha = 0.5f)
-                    ),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = DarkBackground.copy(alpha = 0.55f)
-                    ),
-                    contentPadding = PaddingValues(12.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.Add,
-                        contentDescription = "Agregar a Mi Lista",
-                        tint = AppTextPrimary
-                    )
+                        border = androidx.compose.foundation.BorderStroke(
+                            1.5.dp,
+                            if (isSavedInMyList) AppPrimary else AppTextPrimary.copy(alpha = 0.5f)
+                        ),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (isSavedInMyList) AppPrimary.copy(alpha = 0.2f) else DarkBackground.copy(alpha = 0.55f)
+                        ),
+                        contentPadding = PaddingValues(12.dp)
+                    ) {
+                        Icon(
+                            imageVector = if (isSavedInMyList) Icons.Filled.Check else Icons.Filled.Add,
+                            contentDescription = if (isSavedInMyList) "En Mi Lista" else "Agregar a Mi Lista",
+                            tint = if (isSavedInMyList) AppPrimary else AppTextPrimary
+                        )
+                    }
                 }
-            }
-            Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(16.dp))
         }
         item {
             Text(
@@ -311,7 +323,7 @@ private fun DetailsContent(
             }
         } else {
             items(pairs) { (dom, ui) ->
-                EpisodeItem(episode = ui, imageUrl = item.imageUrl, onClick = { onEpisodeClick(dom) })
+                EpisodeItem(episode = ui, imageUrl = posterUrl, onClick = { onEpisodeClick(dom) })
             }
         }
     }

@@ -34,6 +34,9 @@ class YourUploadExtractor {
         }
 
         if (videoUrl.isEmpty()) return null
+        if (videoUrl.startsWith("//")) videoUrl = "https:$videoUrl"
+        // ponytail: og:video trae "/embed/novideo.mp4" cuando el video murió — no es reproducible
+        if (!videoUrl.startsWith("http")) return null
 
         return VideoStream(
             server = "YourUpload",
