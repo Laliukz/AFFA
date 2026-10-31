@@ -1,23 +1,22 @@
-# AFFA — Anime app (v2)
+# AFFA
 
-Android app for browsing seasonal anime and watching episodes via external
-sources. Kotlin + Jetpack Compose + Material 3.
+AFFA es una aplicación Android para explorar anime, consultar información y episodios, y reproducir contenido disponible en fuentes externas.
 
-## Modules
+## Funciones
 
-- `app` — UI screens (Home, Details, Explore, MyList) + `HomeRepository`
-- `domain` — models (`AnimeMetadata`, `HomeAnimeItem`, `Episode`, …)
-- `core:metadata` — AniList / Jikan / TMDB metadata chain (Retrofit)
-- `core:network` — Jsoup scrapers (AnimeAv1, JkAnime, TioAnime) + extractors
-- `core:common` — shared utils
+- Explorar anime y buscar títulos.
+- Ver detalles y episodios disponibles.
+- Reproducir episodios desde servidores externos compatibles.
+- Guardar títulos en una lista personal y marcar episodios como vistos.
 
-## Setup
+## Tecnologías
 
-1. Copy `local.properties.example` to `local.properties`
-2. Set `sdk.dir` and (optional) `TMDB_API_KEY`
-3. `./gradlew assembleDebug`
+Desarrollada en Kotlin con Jetpack Compose y Material 3. La información se obtiene mediante scrapers de AnimeAv1, JkAnime y TioAnime; los metadatos se complementan con AniList, Jikan y TMDB.
 
-## Workflow
+## Módulos
 
-- `main` is stable, only via PR. Short-lived `feature/*` branches.
-- Commit style: `feat|fix|chore(scope): message`
+- `app`: interfaz, reproducción y lógica de presentación.
+- `domain`: modelos compartidos de la aplicación.
+- `core:network`: scrapers y extracción de fuentes de video.
+- `core:metadata`: proveedores y caché de metadatos.
+- `core:common`: utilidades compartidas.
