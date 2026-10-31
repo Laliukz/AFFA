@@ -3,6 +3,7 @@ package com.lkz.affa.ui.screens
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.lkz.affa.data.repository.HomeRepository
+import com.lkz.affa.data.repository.WatchedEpisodesRepository
 import com.lkz.affa.domain.model.AnimeDetails
 import com.lkz.affa.domain.model.Episode as DomainEpisode
 import com.lkz.affa.domain.model.HomeAnimeItem
@@ -22,8 +23,12 @@ sealed interface DetailsUiState {
 }
 
 class DetailsViewModel(
-    private val repository: HomeRepository
+    private val repository: HomeRepository,
+    private val watchedRepository: WatchedEpisodesRepository
 ) : ViewModel() {
+
+    val watched: StateFlow<Set<String>> = watchedRepository.watched
+    fun toggleWatched(episodeUrl: String) = watchedRepository.toggle(episodeUrl)
 
     private val _uiState = MutableStateFlow<DetailsUiState>(DetailsUiState.Loading)
     val uiState: StateFlow<DetailsUiState> = _uiState.asStateFlow()

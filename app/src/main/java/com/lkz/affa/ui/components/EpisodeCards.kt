@@ -16,6 +16,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -27,6 +28,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.lkz.affa.ui.screens.Episode
+import com.lkz.affa.ui.theme.AppPrimary
 import com.lkz.affa.ui.theme.TextGray
 
 import androidx.compose.foundation.clickable
@@ -44,7 +46,13 @@ internal fun com.lkz.affa.domain.model.Episode.toUiEpisode(): Episode {
 }
 
 @Composable
-fun EpisodeItem(episode: Episode, imageUrl: String = "", onClick: () -> Unit = {}) {
+fun EpisodeItem(
+    episode: Episode,
+    imageUrl: String = "",
+    isWatched: Boolean = false,
+    onClick: () -> Unit = {},
+    onWatchedClick: () -> Unit = {}
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -121,13 +129,15 @@ fun EpisodeItem(episode: Episode, imageUrl: String = "", onClick: () -> Unit = {
                     }
                 }
 
-                // ponytail: sin funcionamiento — se conecta con Mi Lista / historial
-                Icon(
-                    imageVector = Icons.Filled.CheckCircle,
-                    contentDescription = "Visto",
-                    tint = TextGray,
-                    modifier = Modifier.size(22.dp)
-                )
+                // Visto: toggle visual (sin persistencia por ahora)
+                IconButton(onClick = onWatchedClick, modifier = Modifier.size(30.dp)) {
+                    Icon(
+                        imageVector = Icons.Filled.CheckCircle,
+                        contentDescription = "Visto",
+                        tint = if (isWatched) AppPrimary else TextGray,
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
             }
 
             if (episode.description.isNotBlank()) {

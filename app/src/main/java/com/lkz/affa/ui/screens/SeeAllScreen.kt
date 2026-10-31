@@ -12,8 +12,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -21,8 +23,13 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.snapshotFlow
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -49,6 +56,11 @@ fun SeeAllScreen(
     onBackClick: () -> Unit,
     onAnimeClick: (HomeAnimeItem?) -> Unit
 ) {
+    // Recien Anadidos pagina de 20 en 20 con scroll infinito
+    if (section == SeeAllSection.ADDED) {
+        PagedAddedSeeAll(title, viewModel, paddingValues, onBackClick, onAnimeClick)
+        return
+    }
     val items by produceState<List<HomeAnimeItem>?>(initialValue = null, section) {
         value = viewModel?.loadSeeAll(section).orEmpty()
     }
@@ -130,6 +142,125 @@ fun SeeAllScreen(
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun PagedAddedSeeAll(
+    title: String,
+    viewModel: HomeViewModel?,
+    paddingValues: PaddingValues,
+    onBackClick: () -> Unit,
+    onAnimeClick: (HomeAnimeItem?) -> Unit
+) {
+    val items by viewModel?.addedItems?.collectAsStateWithLifecycle()
+        ?: remember { mutableStateOf(emptyList()) }
+    val hasMore by viewModel?.addedHasMore?.collectAsStateWithLifecycle()
+        ?: remember { mutableStateOf(false) }
+    val loadingMore by viewModel?.addedLoadingMore?.collectAsStateWithLifecycle()
+        ?: remember { mutableStateOf(false) }
+    val gridState = rememberLazyGridState()
+
+    LaunchedEffect(Unit) { viewModel?.loadAddedPage() }
+    LaunchedEffect(gridState, items.size) {
+        snapshotFlow { gridState.layoutInfo.visibleItemsInfo.lastOrNull()?.index }
+            .collect { idx -> if (idx != null && idx >= items.size - 6) viewModel?.loadAddedPage() }
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(paddingValues)
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 8.dp, vertical = 8.dp)
+        ) {
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                contentDescription = "Atrás",
+                tint = AppTextPrimary,
+                modifier = Modifier
+                    .align(Alignment.CenterStart)
+                    .clickable { onBackClick() }
+                    .padding(8.dp)
+            )
+            Text(
+                text = title,
+                color = Color.White,
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.align(Alignment.Center)
+            )
+        }
+        when {
+            items.isEmpty() && (loadingMore || hasMore) -> Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) { CircularProgressIndicator(color = PrimaryPurple) }
+
+            items.isEmpty() -> Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) { Text(text = "Sin resultados", color = TextGray, fontSize = 14.sp) }
+
+            else -> LazyVerticalGrid(
+                columns = GridCells.Fixed(3),
+                state = gridState,
+                contentPadding = PaddingValues(16.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+                modifier = Modifier.fillMaxSize()
+            ) {
+                items(items) { item ->
+                    Column(
+                        modifier = Modifier.clickable { onAnimeClick(item) }
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(180.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(CardBackground)
+                        ) {
+                            AsyncImage(
+                                model = item.imageUrl,
+                                contentDescription = item.title,
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = item.title,
+                            color = Color.White,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Text(
+                            text = item.genres.firstOrNull() ?: "Anime",
+                            color = TextGray,
+                            fontSize = 11.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
+                if (loadingMore) {
+                    item(span = { GridItemSpan(maxLineSpan) }) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 16.dp),
+                            contentAlignment = Alignment.Center
+                        ) { CircularProgressIndicator(color = PrimaryPurple) }
                     }
                 }
             }

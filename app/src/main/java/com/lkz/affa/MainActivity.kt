@@ -42,11 +42,15 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    private val watchedRepository by lazy {
+        com.lkz.affa.data.repository.WatchedEpisodesRepository(applicationContext)
+    }
+
     val detailsViewModel: DetailsViewModel by viewModels {
         object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                return DetailsViewModel(repository) as T
+                return DetailsViewModel(repository, watchedRepository) as T
             }
         }
     }

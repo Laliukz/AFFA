@@ -110,7 +110,9 @@ fun AnimeDetailScreen(
                     isSavedInMyList = isSavedInMyList,
                     onToggleMyList = onToggleMyList,
                     onBackClick = onBackClick,
-                    onEpisodeClick = onEpisodeClick
+                    onEpisodeClick = onEpisodeClick,
+                    watched = viewModel?.watched?.collectAsStateWithLifecycle()?.value.orEmpty(),
+                    onToggleWatched = { viewModel?.toggleWatched(it) }
                 )
             }
         }
@@ -127,7 +129,9 @@ private fun DetailsContent(
     isSavedInMyList: Boolean = false,
     onToggleMyList: (HomeAnimeItem) -> Unit = {},
     onBackClick: () -> Unit,
-    onEpisodeClick: (com.lkz.affa.domain.model.Episode) -> Unit
+    onEpisodeClick: (com.lkz.affa.domain.model.Episode) -> Unit,
+    watched: Set<String> = emptySet(),
+    onToggleWatched: (String) -> Unit = {}
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize().padding(paddingValues),
@@ -323,7 +327,13 @@ private fun DetailsContent(
             }
         } else {
             items(pairs) { (dom, ui) ->
-                EpisodeItem(episode = ui, imageUrl = posterUrl, onClick = { onEpisodeClick(dom) })
+                EpisodeItem(
+                    episode = ui,
+                    imageUrl = posterUrl,
+                    isWatched = dom.url in watched,
+                    onClick = { onEpisodeClick(dom) },
+                    onWatchedClick = { onToggleWatched(dom.url) }
+                )
             }
         }
     }
